@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="tr" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="token" content="__TOKEN__">
+<title>Yakala</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="/static/icon.png">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ig-grad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#FEC564"/><stop offset=".35" stop-color="#F5367B"/><stop offset=".7" stop-color="#C13584"/><stop offset="1" stop-color="#6E3BD6"/>
+    </linearGradient>
+  </defs>
+  <symbol id="p-youtube" viewBox="0 0 24 24"><path fill="currentColor" d="M23 7.2a3 3 0 0 0-2.1-2.1C19 4.6 12 4.6 12 4.6s-7 0-8.9.5A3 3 0 0 0 1 7.2 31 31 0 0 0 .5 12a31 31 0 0 0 .5 4.8 3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5a3 3 0 0 0 2.1-2.1c.4-1.6.5-3.2.5-4.8s-.1-3.2-.5-4.8ZM9.7 15.1V8.9l5.8 3.1-5.8 3.1Z"/></symbol>
+  <symbol id="p-twitter" viewBox="0 0 24 24"><path fill="currentColor" d="M17.8 2.5h3.3l-7.2 8.2 8.5 10.8h-6.6l-5.2-6.8-6 6.8H1.3l7.7-8.8L.9 2.5h6.8l4.7 6.2 5.4-6.2Zm-1.2 17h1.8L7.1 4.4H5.1l11.5 15.1Z"/></symbol>
+  <symbol id="p-tiktok" viewBox="0 0 24 24"><path fill="currentColor" d="M16.7 1h-3.9v15.2a3.3 3.3 0 1 1-2.4-3.2V9a7.3 7.3 0 1 0 6.3 7.2V8.6a9.4 9.4 0 0 0 5.5 1.8V6.5a5.5 5.5 0 0 1-5.5-5.5Z"/></symbol>
+  <symbol id="p-instagram" viewBox="0 0 24 24"><path fill="currentColor" d="M12 7.2a4.8 4.8 0 1 0 0 9.6 4.8 4.8 0 0 0 0-9.6Zm0 7.9a3.1 3.1 0 1 1 0-6.2 3.1 3.1 0 0 1 0 6.2Zm6.1-8.1a1.1 1.1 0 1 1-2.2 0 1.1 1.1 0 0 1 2.2 0ZM12 3.6c2.7 0 3.1 0 4.1.1 2.8.1 4.1 1.4 4.2 4.2.1 1 .1 1.4.1 4.1s0 3.1-.1 4.1c-.1 2.8-1.4 4.1-4.2 4.2-1 .1-1.4.1-4.1.1s-3.1 0-4.1-.1c-2.8-.1-4.1-1.4-4.2-4.2-.1-1-.1-1.4-.1-4.1s0-3.1.1-4.1C3.8 5.1 5.1 3.8 7.9 3.7c1-.1 1.4-.1 4.1-.1ZM12 2c-2.7 0-3.1 0-4.1.1C4.2 2.2 2.2 4.2 2.1 7.9 2 8.9 2 9.3 2 12s0 3.1.1 4.1c.1 3.7 2.1 5.7 5.8 5.8 1 .1 1.4.1 4.1.1s3.1 0 4.1-.1c3.7-.1 5.7-2.1 5.8-5.8.1-1 .1-1.4.1-4.1s0-3.1-.1-4.1c-.1-3.7-2.1-5.7-5.8-5.8C15.1 2 14.7 2 12 2Z"/></symbol>
+  <symbol id="p-other" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4l-1 1M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
+
+  <symbol id="i-download" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M12 3.5v11m0 0-4.5-4.5M12 14.5l4.5-4.5M4.5 15.5v2.5a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-2.5"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4h4M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M4 6.5h9m4 0h3M4 12h3m4 0h9M4 17.5h11m4 0h1"/><circle cx="15" cy="6.5" r="2" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="9" cy="12" r="2" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17" cy="17.5" r="2" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+  <symbol id="i-paste" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M9 4.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2h-2M9 3h6v3H9z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2Z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.5v13a1 1 0 0 0 1.5.9l10.3-6.5a1 1 0 0 0 0-1.8L9.5 4.6A1 1 0 0 0 8 5.5Z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4.5h3.2v15H7zM13.8 4.5H17v15h-3.2z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-retry" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4.5h-4.5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5l1-12.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="currentColor" d="M10 9.2v5.6l4.6-2.8z"/></symbol>
+  <symbol id="i-music" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M9 18V5.5l11-2v12.5"/><circle cx="6.5" cy="18" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17.5" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="9" cy="9.5" r="1.7" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M10 14a4.5 4.5 0 0 0 6.4 0l3.2-3.2a4.5 4.5 0 0 0-6.4-6.4l-1 1M14 10a4.5 4.5 0 0 0-6.4 0l-3.2 3.2a4.5 4.5 0 0 0 6.4 6.4l1-1"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M12 8.5v4.5M12 16.5v.01M10.3 3.9 2.6 17.5A2 2 0 0 0 4.3 20.5h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="m16 16 4.5 4.5"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M14 4.5h5.5V10M19.5 4.5 11 13M17 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7H10"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h13m-5-5.5L18.5 12 13 17.5"/></symbol>
+  <symbol id="i-logo" viewBox="0 0 32 32"><path fill="currentColor" d="M16 3a13 13 0 1 0 13 13A13 13 0 0 0 16 3Zm0 4.2a1.8 1.8 0 0 1 1.8 1.8v8.4l2.7-2.7a1.8 1.8 0 0 1 2.5 2.5l-5.7 5.7a1.8 1.8 0 0 1-2.6 0L9 17.2a1.8 1.8 0 0 1 2.5-2.5l2.7 2.7V9A1.8 1.8 0 0 1 16 7.2Z"/></symbol>
+</svg>
+
+<div class="shell">
+  <nav class="rail" aria-label="Bölümler">
+    <div class="brand" title="Yakala">
+      <svg class="brand-mark"><use href="#i-logo"/></svg>
+    </div>
+    <button class="rail-btn active" data-view="home" aria-label="İndir">
+      <svg><use href="#i-download"/></svg><span>İndir</span><b class="rail-badge" id="activeBadge" hidden>0</b>
+    </button>
+    <button class="rail-btn" data-view="history" aria-label="Geçmiş">
+      <svg><use href="#i-history"/></svg><span>Geçmiş</span>
+    </button>
+    <button class="rail-btn" data-view="settings" aria-label="Ayarlar">
+      <svg><use href="#i-settings"/></svg><span>Ayarlar</span>
+    </button>
+    <div class="rail-spacer"></div>
+    <button class="rail-btn small" id="themeBtn" aria-label="Temayı değiştir">
+      <svg><use href="#i-moon"/></svg>
+    </button>
+  </nav>
+
+  <main class="main">
+    <!-- ================= İNDİR ================= -->
+    <section class="view" id="view-home">
+      <header class="hero">
+        <h1>Ne indirmek istiyorsun?</h1>
+        <p class="lede">YouTube, X, TikTok veya Instagram bağlantısını yapıştır. Birden fazla bağlantıyı aynı anda da bırakabilirsin.</p>
+      </header>
+
+      <div class="catcher" id="catcher" data-platform="none">
+        <div class="lens" id="lens" aria-hidden="true">
+          <svg class="lens-icon"><use href="#i-link"/></svg>
+        </div>
+        <div class="catcher-field">
+          <label class="lens-label" id="lensLabel" for="urlInput">Bağlantı</label>
+          <textarea id="urlInput" rows="1" spellcheck="false" autocomplete="off"
+            placeholder="https://… bağlantısını buraya yapıştır"></textarea>
+        </div>
+        <button class="ghost-btn" id="pasteBtn" title="Panodan yapıştır (Ctrl+V)">
+          <svg><use href="#i-paste"/></svg><span>Yapıştır</span>
+        </button>
+        <button class="go-btn" id="goBtn" aria-label="Bağlantıyı incele">
+          <svg><use href="#i-arrow"/></svg>
+        </button>
+      </div>
+
+      <div class="clip-hint" id="clipHint" hidden>
+        <svg class="clip-hint-icon"><use href="#p-other"/></svg>
+        <span id="clipHintText"></span>
+        <button class="link-btn" id="clipHintUse">Kullan</button>
+        <button class="icon-btn tiny" id="clipHintClose" aria-label="Kapat"><svg><use href="#i-x"/></svg></button>
+      </div>
+
+      <div id="stage"></div>
+
+      <div class="platforms" id="platformsIntro">
+        <div class="plat" data-p="youtube"><svg><use href="#p-youtube"/></svg><div><b>YouTube</b><span>Video, Shorts, oynatma listesi, müzik</span></div></div>
+        <div class="plat" data-p="twitter"><svg><use href="#p-twitter"/></svg><div><b>X (Twitter)</b><span>Video, GIF ve fotoğraflar</span></div></div>
+        <div class="plat" data-p="tiktok"><svg><use href="#p-tiktok"/></svg><div><b>TikTok</b><span>Video, fotoğraf slaytı, ses</span></div></div>
+        <div class="plat" data-p="instagram"><svg><use href="#p-instagram"/></svg><div><b>Instagram</b><span>Reels, gönderi, hikâye, öne çıkanlar</span></div></div>
+      </div>
+
+      <section class="queue" id="queueSection" hidden>
+        <div class="section-head">
+          <h2>İndirmeler</h2>
+          <div class="section-actions">
+            <button class="text-btn" id="openFolderBtn"><svg><use href="#i-folder"/></svg>Klasörü aç</button>
+            <button class="text-btn" id="clearBtn">Bitenleri temizle</button>
+          </div>
+        </div>
+        <ul class="jobs" id="jobs"></ul>
+      </section>
+    </section>
+
+    <!-- ================= GEÇMİŞ ================= -->
+    <section class="view" id="view-history" hidden>
+      <header class="page-head">
+        <h1>Geçmiş</h1>
+        <p class="lede" id="historySummary">İndirdiğin her şey burada.</p>
+      </header>
+      <div class="history-tools">
+        <label class="search">
+          <svg><use href="#i-search"/></svg>
+          <input id="historySearch" type="search" placeholder="Başlık veya kanal ara">
+        </label>
+        <div class="filter" id="historyFilter" role="group" aria-label="Platform filtresi">
+          <button class="chip active" data-f="all">Tümü</button>
+          <button class="chip" data-f="youtube"><svg><use href="#p-youtube"/></svg>YouTube</button>
+          <button class="chip" data-f="twitter"><svg><use href="#p-twitter"/></svg>X</button>
+          <button class="chip" data-f="tiktok"><svg><use href="#p-tiktok"/></svg>TikTok</button>
+          <button class="chip" data-f="instagram"><svg><use href="#p-instagram"/></svg>Instagram</button>
+        </div>
+        <button class="text-btn danger" id="historyClear">Geçmişi temizle</button>
+      </div>
+      <ul class="history" id="historyList"></ul>
+    </section>
+
+    <!-- ================= AYARLAR ================= -->
+    <section class="view" id="view-settings" hidden>
+      <header class="page-head">
+        <h1>Ayarlar</h1>
+        <p class="lede">Değişiklikler anında kaydedilir.</p>
+      </header>
+
+      <div class="settings">
+        <section class="set-group">
+          <h3>Kayıt yeri</h3>
+          <div class="set-row">
+            <div class="set-text"><b>İndirme klasörü</b><span class="path" id="sDir"></span></div>
+            <div class="set-ctrl">
+              <button class="soft-btn" id="sDirOpen"><svg><use href="#i-folder"/></svg>Aç</button>
+              <button class="soft-btn" id="sDirPick">Değiştir</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Platformlara göre ayır</b><span>YouTube, X, TikTok ve Instagram için ayrı alt klasörler oluşturur.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="platform_folders"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Dosya adı</b><span>Aynı adlı dosyaların üst üste binmemesi için kimlik eklemek önerilir.</span></div>
+            <div class="set-ctrl">
+              <select data-s="filename">
+                <option value="title_id">Başlık [kimlik]</option>
+                <option value="title">Yalnızca başlık</option>
+                <option value="uploader_title">Kanal - Başlık</option>
+                <option value="date_title">Tarih - Başlık</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="set-group">
+          <h3>Video</h3>
+          <div class="set-row">
+            <div class="set-text"><b>Varsayılan kalite</b><span>Toplu indirmelerde ve ilk açılışta seçili gelir.</span></div>
+            <div class="set-ctrl">
+              <select data-s="video_quality">
+                <option value="best">En iyi</option><option value="2160">2160p (4K)</option><option value="1440">1440p</option>
+                <option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Dosya biçimi</b><span>MP4 her cihazda açılır. MKV birden fazla ses ve altyazı izini daha iyi taşır.</span></div>
+            <div class="set-ctrl">
+              <div class="seg" data-s="video_container"><button data-v="mp4">MP4</button><button data-v="mkv">MKV</button></div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>En uyumlu kodek</b><span>Aynı çözünürlükte H.264/AAC tercih edilir; eski TV ve telefonlarda sorunsuz oynar.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="compat_codecs"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Altyazıları göm</b><span>Varsa altyazılar videonun içine eklenir.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="subtitles"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Altyazı dilleri</b><span>Virgülle ayır. Örnek: tr,en</span></div>
+            <div class="set-ctrl"><input class="text-input short" data-s="sub_langs" type="text" spellcheck="false"></div>
+          </div>
+        </section>
+
+        <section class="set-group">
+          <h3>Ses</h3>
+          <div class="set-row">
+            <div class="set-text"><b>Ses biçimi</b><span>MP3 en yaygın olanı; FLAC ve WAV kayıpsızdır ama büyük dosya üretir.</span></div>
+            <div class="set-ctrl">
+              <div class="seg" data-s="audio_format"><button data-v="mp3">MP3</button><button data-v="m4a">M4A</button><button data-v="opus">OPUS</button><button data-v="flac">FLAC</button><button data-v="wav">WAV</button></div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Ses kalitesi</b><span>Kayıplı biçimler için bit hızı.</span></div>
+            <div class="set-ctrl">
+              <select data-s="audio_quality">
+                <option value="320">320 kbps</option><option value="256">256 kbps</option><option value="192">192 kbps</option><option value="128">128 kbps</option><option value="best">Kaynakla aynı</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Kapak görselini ekle</b><span>Küçük resim, dosyanın kapağı olarak gömülür.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="embed_thumbnail"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Bilgileri yaz</b><span>Başlık, sanatçı ve tarih dosya etiketlerine eklenir.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="embed_metadata"><i></i></label></div>
+          </div>
+        </section>
+
+        <section class="set-group">
+          <h3>Hesap çerezleri</h3>
+          <p class="group-note">Instagram hikâyeleri, gizli hesaplar, yaş sınırlı videolar ve YouTube bot doğrulaması için giriş yapmış olduğun tarayıcının çerezleri kullanılır. Çerezler bilgisayarından dışarı gönderilmez; yalnızca ilgili siteye istek yapılırken kullanılır.</p>
+          <div class="set-row">
+            <div class="set-text"><b>Çerez kaynağı</b></div>
+            <div class="set-ctrl">
+              <div class="seg" data-s="cookies_mode"><button data-v="none">Kullanma</button><button data-v="browser">Tarayıcıdan</button><button data-v="file">cookies.txt</button></div>
+            </div>
+          </div>
+          <div class="set-row" id="rowBrowser">
+            <div class="set-text"><b>Tarayıcı</b><span>Firefox en sorunsuz olanıdır. Chrome ve Edge'de çerezler okunamazsa tarayıcıyı tamamen kapat ya da cookies.txt kullan.</span></div>
+            <div class="set-ctrl">
+              <select data-s="cookies_browser">
+                <option value="firefox">Firefox</option><option value="chrome">Chrome</option><option value="edge">Edge</option>
+                <option value="brave">Brave</option><option value="opera">Opera</option><option value="vivaldi">Vivaldi</option><option value="chromium">Chromium</option>
+              </select>
+            </div>
+          </div>
+          <div class="set-row" id="rowCookieFile">
+            <div class="set-text"><b>cookies.txt dosyası</b><span class="path" id="sCookieFile">Seçilmedi</span></div>
+            <div class="set-ctrl"><button class="soft-btn" id="sCookiePick">Dosya seç</button></div>
+          </div>
+        </section>
+
+        <section class="set-group">
+          <h3>Uygulama</h3>
+          <div class="set-row">
+            <div class="set-text"><b>Aynı anda indirme</b><span>Kuyruktaki kaç işin birlikte çalışacağı.</span></div>
+            <div class="set-ctrl">
+              <div class="stepper"><button id="concMinus" aria-label="Azalt">−</button><output id="concVal">2</output><button id="concPlus" aria-label="Artır">+</button></div>
+            </div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Panoyu izle</b><span>Bir bağlantı kopyaladığında uygulamaya döndüğünde önerir.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="clipboard_watch"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Bitiş sesi</b><span>Bir indirme tamamlandığında kısa bir ses çalar.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="sound"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Hız sınırı</b><span>Boş bırakılırsa sınırsız. Örnek: 5M (saniyede 5 MB)</span></div>
+            <div class="set-ctrl"><input class="text-input short" data-s="rate_limit" type="text" placeholder="Sınırsız" spellcheck="false"></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Proxy</b><span>Örnek: socks5://127.0.0.1:1080</span></div>
+            <div class="set-ctrl"><input class="text-input" data-s="proxy" type="text" placeholder="Kullanılmıyor" spellcheck="false"></div>
+          </div>
+        </section>
+
+        <section class="set-group">
+          <h3>Sistem</h3>
+          <div class="set-row">
+            <div class="set-text"><b>FFmpeg</b><span id="sysFfmpeg">Denetleniyor…</span>
+              <div class="mini-bar" id="ffBar" hidden><i></i></div></div>
+            <div class="set-ctrl"><button class="soft-btn" id="ffInstall" hidden>Tam sürümü kur</button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>İndirme motorları</b><span id="sysEngines"></span><span id="sysUpdate" class="note"></span></div>
+            <div class="set-ctrl"><button class="soft-btn" id="engUpdate"><svg><use href="#i-retry"/></svg>Güncelle</button></div>
+          </div>
+          <p class="group-note">Platformlar sık sık değişiklik yapar. Bir şey indirilemezse önce motorları güncelle.</p>
+        </section>
+        <p class="foot" id="appFoot"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="drop-veil" id="dropVeil" hidden><div><svg><use href="#i-download"/></svg><b>Bağlantıyı bırak</b></div></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<template id="tpl-job">
+  <li class="job">
+    <div class="job-thumb"><img alt="" loading="lazy"><svg class="job-plat"><use href="#p-other"/></svg></div>
+    <div class="job-body">
+      <div class="job-top"><b class="job-title"></b></div>
+      <div class="job-meta"><span class="job-stage"></span><span class="job-info"></span></div>
+      <div class="bar"><i></i></div>
+      <p class="job-error" hidden></p>
+    </div>
+    <div class="job-actions"></div>
+  </li>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

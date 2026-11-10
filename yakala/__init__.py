@@ -1,0 +1,1 @@
+"""Yakala — sosyal medya indirici."""
