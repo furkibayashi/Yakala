@@ -46,6 +46,8 @@
   <symbol id="i-open" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M14 4.5h5.5V10M19.5 4.5 11 13M17 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7H10"/></symbol>
   <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h13m-5-5.5L18.5 12 13 17.5"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15ZM10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-logo" viewBox="0 0 32 32"><path fill="currentColor" d="M16 3a13 13 0 1 0 13 13A13 13 0 0 0 16 3Zm0 4.2a1.8 1.8 0 0 1 1.8 1.8v8.4l2.7-2.7a1.8 1.8 0 0 1 2.5 2.5l-5.7 5.7a1.8 1.8 0 0 1-2.6 0L9 17.2a1.8 1.8 0 0 1 2.5-2.5l2.7 2.7V9A1.8 1.8 0 0 1 16 7.2Z"/></symbol>
 </svg>
 
@@ -56,6 +58,9 @@
     </div>
     <button class="rail-btn active" data-view="home" aria-label="İndir">
       <svg><use href="#i-download"/></svg><span>İndir</span><b class="rail-badge" id="activeBadge" hidden>0</b>
+    </button>
+    <button class="rail-btn" data-view="subs" aria-label="Takip">
+      <svg><use href="#i-bell"/></svg><span>Takip</span><b class="rail-badge" id="subsBadge" hidden>0</b>
     </button>
     <button class="rail-btn" data-view="history" aria-label="Geçmiş">
       <svg><use href="#i-history"/></svg><span>Geçmiş</span>
@@ -129,6 +134,43 @@
         </div>
         <ul class="jobs" id="jobs"></ul>
       </section>
+    </section>
+
+    <!-- ================= TAKİP ================= -->
+    <section class="view" id="view-subs" hidden>
+      <header class="page-head">
+        <h1>Takip</h1>
+        <p class="lede">YouTube kanallarını, oynatma listelerini ve TikTok profillerini takip et. Yeni bir video geldiğinde Yakala haber verir ya da kendisi indirir.</p>
+      </header>
+
+      <div class="sub-add card">
+        <label class="search sub-url">
+          <svg><use href="#i-link"/></svg>
+          <input id="subUrl" type="text" spellcheck="false" placeholder="Kanal, oynatma listesi ya da TikTok profili bağlantısı">
+        </label>
+        <div class="sub-add-row">
+          <div class="seg" id="subMode" role="group" aria-label="İndirme türü"><button data-v="video" class="on">Video</button><button data-v="audio">Ses</button></div>
+          <select id="subQuality" aria-label="Kalite">
+            <option value="best">En iyi kalite</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option>
+          </select>
+          <label class="check"><input type="checkbox" id="subAuto">Yenileri otomatik indir</label>
+          <button class="dl-btn small" id="subAddBtn"><svg><use href="#i-plus"/></svg>Takip et</button>
+        </div>
+        <p class="group-note" style="margin:10px 0 0">Eklediğin anda listedeki mevcut videolar "görüldü" sayılır; bundan sonra yüklenenler yeni olarak gelir.</p>
+      </div>
+
+      <div class="section-head subs-head">
+        <h2 id="subsTitle">Takip ettiklerin</h2>
+        <div class="section-actions">
+          <select data-s="sub_interval" aria-label="Denetim sıklığı" class="compact">
+            <option value="30">30 dakikada bir</option><option value="60">Saatte bir</option><option value="180">3 saatte bir</option>
+            <option value="360">6 saatte bir</option><option value="1440">Günde bir</option>
+          </select>
+          <button class="text-btn" id="subsCheckAll"><svg><use href="#i-retry"/></svg>Hepsini şimdi denetle</button>
+        </div>
+      </div>
+      <ul class="subs" id="subsList"></ul>
+      <p class="group-note" style="margin-top:12px">Denetimler Yakala açıkken yapılır.</p>
     </section>
 
     <!-- ================= GEÇMİŞ ================= -->

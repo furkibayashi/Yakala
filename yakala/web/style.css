@@ -511,6 +511,31 @@ select option { background: var(--panel); }
 .text-input.time { width: 92px; min-width: 0; font-variant-numeric: tabular-nums; }
 .check.off { opacity: .45; cursor: not-allowed; }
 
+/* ------------------------------------------------------------- takip */
+.sub-add { display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
+.sub-url { width: 100%; }
+.sub-add-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sub-add-row .dl-btn { margin-left: auto; }
+.dl-btn.small { height: 42px; padding: 0 18px 0 14px; font-size: 14.5px; border-radius: 13px; }
+.dl-btn.small svg { width: 19px; height: 19px; }
+select.compact { height: 34px; min-width: 0; font-size: 13px; }
+.subs-head { align-items: center; }
+.subs { list-style: none; margin: 0; padding: 0; background: var(--panel); border: 1px solid var(--line-soft); border-radius: 22px; overflow: hidden; }
+.sub { border-bottom: 1px solid var(--line-soft); }
+.sub:last-child { border-bottom: 0; }
+.sub-main { display: grid; grid-template-columns: 112px 1fr auto; gap: 16px; align-items: center; padding: 14px 16px; }
+.sub-pending { padding: 0 16px 16px 144px; }
+.sub-entry { grid-template-columns: 92px 1fr auto auto; cursor: default; }
+.sub-entry-actions { display: inline-flex; align-items: center; gap: 2px; }
+.new-pill { padding: 0 8px; border-radius: 7px; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 12px; }
+.switch-label { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); margin-right: 6px; }
+.switch-label .switch { transform: scale(.85); }
+.icon-btn.spin svg { animation: spin 1s linear infinite; color: var(--accent); }
+@media (max-width: 640px) {
+  .sub-main { grid-template-columns: 72px 1fr; }
+  .sub-pending { padding: 0 12px 12px; }
+}
+
 /* ------------------------------------------------------------- kaydırma çubuğu */
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }

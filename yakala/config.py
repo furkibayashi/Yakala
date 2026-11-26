@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 APP_NAME = "Yakala"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.2.0"
 
 
 def app_dir() -> Path:
@@ -71,6 +71,7 @@ DEFAULTS: dict = {
     "auto_update": True,
     "quick_mode": "off",
     "save_caption": False,
+    "sub_interval": "60",
 }
 
 FILENAME_TEMPLATES = {
@@ -90,6 +91,7 @@ CHOICES = {
     "cookies_browser": {"firefox", "chrome", "edge", "brave", "opera", "vivaldi", "chromium"},
     "theme": {"dark", "light"},
     "quick_mode": {"off", "video", "audio"},
+    "sub_interval": {"30", "60", "180", "360", "1440"},
 }
 
 

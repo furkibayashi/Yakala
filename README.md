@@ -32,6 +32,13 @@ Bunların dışında yt-dlp'nin desteklediği yüzlerce site de "Diğer site" ol
 - **Sürükle bırak:** tarayıcıdan bir bağlantıyı pencereye sürükle.
 - **Koyu / açık tema**, platformlara göre klasörleme, dosya adı şablonları, hız sınırı, proxy.
 
+### 1.2 ile gelenler
+
+- **Takip:** YouTube kanallarını, oynatma listelerini ve TikTok profillerini takip et. Yakala belirlediğin
+  sıklıkta (30 dakikadan günde bire) yeni videolara bakar; istersen kendisi indirir, istersen "yeni" olarak
+  bekletir ve haber verir. Eklediğin anda mevcut videolar "görüldü" sayılır, böylece eski videolar inmez.
+  Oynatma listesi kartındaki **Takip et** düğmesiyle de eklenebilir. Denetimler uygulama açıkken yapılır.
+
 ### 1.1 ile gelenler
 
 - **Kendini güncelleyen motorlar:** yt-dlp ve gallery-dl günde bir kez denetlenir, yenisi arka planda
@@ -90,7 +97,7 @@ tek tıkla tam sürüme (ffprobe dahil) yükseltebilirsin.
 | `Enter` | Bağlantıyı incele |
 | `Esc` | Alanı temizle |
 | `/` veya `Ctrl+L` | Bağlantı alanına git |
-| `Alt+1/2/3` | İndir / Geçmiş / Ayarlar |
+| `Alt+1/2/3/4` | İndir / Takip / Geçmiş / Ayarlar |
 
 ## Instagram hikâyeleri ve giriş gerektiren içerikler
 

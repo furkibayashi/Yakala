@@ -22,13 +22,20 @@ Bu liste, benzer uygulamaların incelenmesinden çıkan fikirlerden oluşuyor. �
 | "Daha önce indirdin" uyarısı | Tartube / Open Video Downloader'da istenen tekrar indirme engeli |
 | Açıklama ve hashtag'leri .txt olarak kaydetme | gallery-dl metadata, cobalt; özellikle Instagram ve TikTok kullanıcıları |
 
+## 1.2'de yapılanlar
+
+| Özellik | Neden seçildi |
+|---|---|
+| Takip (YouTube kanalı, oynatma listesi, TikTok profili) | İncelenen masaüstü uygulamalarının çoğunda var; 4K bunu ücretli satıyor |
+
+X ve Instagram profillerinin takibi giriş gerektirdiği için sonraki sürümlere kaldı.
+
 ## Sıradaki fikirler
 
 Değer (1–5) ve zorluk analizcilerin değerlendirmesinden alındı.
 
 | Fikir | Değer | Zorluk | Not |
 |---|---|---|---|
-| Kanal / profil abonelikleri: yeni videoları otomatik indir | 5 | Orta | `--download-archive` + `--break-on-existing`; 4K bunu ücretli satıyor |
 | Profil arşivleyici (gönderi, reels, hikâye, öne çıkan, profil fotoğrafı) | 5 | Orta | gallery-dl `include`; Instagram için giriş gerekir |
 | Tarayıcıdan "Yakala'ya gönder" (eklenti + `yakala://` bağlantısı) | 4 | Orta–Yüksek | Video DownloadHelper, Parabolic |
 | Sistem tepsisinde çalışma ve arka planda pano izleme | 4 | Orta | Kopyala-unut toplu indirme |

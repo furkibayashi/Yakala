@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import config, platforms, tools, updater
 from .engine import AnalyzeError, Engine
+from .subscriptions import SubError, Subscriptions
 
 TOKEN = secrets.token_urlsafe(24)
 
@@ -22,6 +23,7 @@ class App:
         self.history = config.History()
         self.thumbs = tools.ThumbCache()
         self.engine = Engine(self.settings, self.history, self.thumbs)
+        self.subs = Subscriptions(self.engine, self.settings, self.thumbs)
         if self.settings.get("auto_update"):
             updater.maybe_auto(tools.helper_cmd, tools.run_hidden)
         self.web = config.resource_dir() / "web"
@@ -58,7 +60,16 @@ class App:
             mode = "audio" if body.get("mode") == "audio" else "video"
             return [e.submit({"url": u, "mode": mode}) for u in urls[:200]]
         if name == "jobs":
-            return {"jobs": e.list(), "ffmpeg": dict(tools.ffmpeg_install), "update": dict(e.update_state)}
+            subs = self.subs.public()
+            return {"jobs": e.list(), "ffmpeg": dict(tools.ffmpeg_install), "update": dict(e.update_state),
+                    "sub_events": self.subs.take_events(),
+                    "sub_new": sum(len(x["pending"]) for x in subs),
+                    "sub_checking": any(x["checking"] for x in subs)}
+        if name.startswith("subs"):
+            try:
+                return self.subs_api(name, body)
+            except SubError as ex:
+                raise UserError(str(ex)) from ex
         if name == "job":
             return e.action(str(body.get("id")), str(body.get("action")))
         if name == "clear":
@@ -99,6 +110,35 @@ class App:
             return True
         if name == "update_engines":
             e.update_engines()
+            return True
+        raise UserError("Bilinmeyen istek.")
+
+    def subs_api(self, name: str, body: dict):
+        s = self.subs
+        sid = str(body.get("id") or "")
+        ids = [str(i) for i in body.get("ids") or []] or None
+        if name == "subs":
+            return s.public()
+        if name == "subs_add":
+            urls = platforms.extract_urls(body.get("url", ""))
+            if not urls:
+                raise UserError("Geçerli bir bağlantı bulunamadı.")
+            return s.add(urls[0], str(body.get("mode") or "video"), str(body.get("quality") or "best"),
+                         bool(body.get("auto")))
+        if name == "subs_update":
+            s.update(sid, body.get("changes") or {})
+            return True
+        if name == "subs_remove":
+            s.remove(sid)
+            return True
+        if name == "subs_check":
+            target = (lambda: s.check(sid)) if sid else s.check_all
+            threading.Thread(target=target, daemon=True).start()
+            return True
+        if name == "subs_download":
+            return s.download(sid, ids)
+        if name == "subs_dismiss":
+            s.dismiss(sid, ids)
             return True
         raise UserError("Bilinmeyen istek.")
 

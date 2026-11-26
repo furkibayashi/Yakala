@@ -188,6 +188,7 @@ function show(view) {
   $$('.view').forEach(v => { v.hidden = v.id !== 'view-' + view; });
   $('.main').scrollTop = 0;
   if (view === 'history') loadHistory();
+  if (view === 'subs') loadSubs();
   if (view === 'settings') refreshSystem();
   if (view === 'home') setTimeout(() => $('#urlInput').focus(), 30);
 }
@@ -586,11 +587,19 @@ function playlistCard(r, rerender) {
       h('span', { class: 'd', text: dur(e.duration) })));
   }
   const n = sel.entries.size;
+  const follow = h('button', { class: 'text-btn', onclick: async e => {
+    const b = e.currentTarget; b.disabled = true;
+    try {
+      const res = await api('subs_add', { url: r.url, mode: sel.mode, quality: String(sel.quality), auto: false });
+      toast(`Takip ediliyor: ${res.title}. Yeni videolar Takip sayfasında görünecek.`, 'ok');
+    } catch (err) { toast(err.message, 'err'); b.disabled = false; }
+  } }, icon('i-bell'), 'Takip et');
   return [
     h('div', { class: 'result' }, media, h('div', {}, info, opts)),
     h('div', { class: 'pick-head' },
       h('div', { class: 'opt-label', text: `${n} / ${r.entries.length} video seçili` }),
       h('div', { class: 'pick-tools' },
+        follow,
         h('button', { class: 'text-btn', onclick: () => { sel.entries = new Set(r.entries.map(e => e.index)); rerender(); }, text: 'Tümünü seç' }),
         h('button', { class: 'text-btn', onclick: () => { sel.entries.clear(); rerender(); }, text: 'Seçimi kaldır' }))),
     list,
@@ -710,8 +719,9 @@ async function poll(immediate) {
     jobsCache = d.jobs;
     renderJobs(d.jobs);
     ffState = d.ffmpeg; updState = d.update;
+    handleSubPoll(d);
     renderSysProgress();
-    active = d.jobs.some(j => j.status === 'running' || j.status === 'queued') || d.ffmpeg.running || d.update.running;
+    active = d.jobs.some(j => j.status === 'running' || j.status === 'queued') || d.ffmpeg.running || d.update.running || d.sub_checking;
   } catch { /* sunucu kısa süreliğine meşgul olabilir */ }
   pollTimer = setTimeout(poll, document.hidden ? 3000 : active ? 450 : 2000);
 }
@@ -896,6 +906,129 @@ $('#historyClear').addEventListener('click', async () => {
   toast('Geçmiş temizlendi.', 'ok');
 });
 
+/* ================================================================== takip */
+let subsCache = [];
+let subsOpen = new Set();
+function relTime(ts) {
+  if (!ts) return 'henüz denetlenmedi';
+  const s = Date.now() / 1000 - ts;
+  if (s < 60) return 'az önce';
+  if (s < 3600) return `${Math.floor(s / 60)} dk önce`;
+  if (s < 86400) return `${Math.floor(s / 3600)} sa önce`;
+  return `${Math.floor(s / 86400)} gün önce`;
+}
+async function loadSubs() {
+  try { subsCache = await api('subs'); } catch (e) { toast(e.message, 'err'); return; }
+  renderSubs();
+}
+function renderSubs() {
+  const list = $('#subsList');
+  list.replaceChildren();
+  $('#subsTitle').textContent = subsCache.length ? `Takip ettiklerin (${subsCache.length})` : 'Takip ettiklerin';
+  if (!subsCache.length) {
+    list.append(h('li', { class: 'empty' }, h('b', { text: 'Henüz kimseyi takip etmiyorsun' }),
+      'Yukarıya bir YouTube kanalı ya da TikTok profili bağlantısı yapıştır.'));
+    return;
+  }
+  const b = (ic, label, fn, cls = '') => h('button', { class: 'icon-btn ' + cls, title: label, 'aria-label': label, onclick: fn }, icon(ic));
+  for (const s of subsCache) {
+    const thumb = h('div', { class: 'h-thumb' });
+    const im = img(thumbSrc(s.thumb));
+    if (im) thumb.append(im);
+    thumb.append(icon('p-' + s.platform, 'h-plat'));
+    const autoCb = h('input', { type: 'checkbox' });
+    autoCb.checked = !!s.auto;
+    autoCb.addEventListener('change', async () => { await api('subs_update', { id: s.id, changes: { auto: autoCb.checked } }); loadSubs(); });
+    const meta = [PNAMES[s.platform] || '', s.mode === 'audio' ? 'Ses' : (s.quality === 'best' ? 'En iyi kalite' : s.quality + 'p'),
+      s.checking ? 'Denetleniyor…' : 'Son denetim ' + relTime(s.last_check)];
+    if (s.downloaded) meta.push(`${s.downloaded} video indirildi`);
+    const pend = s.pending || [];
+    const open = subsOpen.has(s.id) || pend.length <= 3;
+    const li = h('li', { class: `sub p-${s.platform}` },
+      h('div', { class: 'sub-main' }, thumb,
+        h('div', { class: 'job-body' },
+          h('b', { class: 'h-title', text: s.title, title: s.url }),
+          h('div', { class: 'h-meta' }, meta.map(m => h('span', { text: m })),
+            pend.length ? h('span', { class: 'new-pill', text: `${pend.length} yeni` }) : null),
+          s.error ? h('p', { class: 'job-error', text: s.error }) : null),
+        h('div', { class: 'h-actions' },
+          h('label', { class: 'switch-label', title: 'Yeni videoları otomatik indir' }, h('span', { text: 'Otomatik' }),
+            h('span', { class: 'switch' }, autoCb, h('i'))),
+          b('i-retry', 'Şimdi denetle', async () => { await api('subs_check', { id: s.id }); setTimeout(loadSubs, 300); }, s.checking ? 'spin' : ''),
+          b('i-trash', 'Takibi bırak', async () => {
+            if (!confirm(`"${s.title}" takibi bırakılsın mı? İndirilen dosyalar silinmez.`)) return;
+            await api('subs_remove', { id: s.id }); loadSubs();
+          }, 'danger'))));
+    if (pend.length) {
+      const box = h('div', { class: 'sub-pending' },
+        h('div', { class: 'pick-head', style: 'margin:0 0 8px' },
+          h('div', { class: 'opt-label', text: `${pend.length} yeni video` }),
+          h('div', { class: 'pick-tools' },
+            pend.length > 3 ? h('button', { class: 'text-btn', onclick: () => { subsOpen.has(s.id) ? subsOpen.delete(s.id) : subsOpen.add(s.id); renderSubs(); },
+              text: open ? 'Gizle' : 'Göster' }) : null,
+            h('button', { class: 'text-btn', onclick: async () => { await api('subs_dismiss', { id: s.id }); loadSubs(); }, text: 'Yok say' }),
+            h('button', { class: 'soft-btn', onclick: async () => {
+              const n = await api('subs_download', { id: s.id }); toast(`${n} video kuyruğa eklendi.`, 'ok'); loadSubs(); poll(true);
+            } }, icon('i-download'), 'Hepsini indir'))));
+      if (open) {
+        const rows = h('div', { class: 'entries' });
+        for (const p of pend) {
+          rows.append(h('div', { class: 'entry sub-entry' },
+            img(thumbSrc(p.thumb), '', el => el.replaceWith(h('span', { class: 'noimg' }))) || h('span', { class: 'noimg' }),
+            h('span', { class: 't', text: p.title, title: p.title }),
+            h('span', { class: 'd', text: dur(p.duration) }),
+            h('span', { class: 'sub-entry-actions' },
+              h('button', { class: 'link-btn', text: 'İndir', onclick: async () => {
+                await api('subs_download', { id: s.id, ids: [p.id] }); toast('Kuyruğa eklendi: ' + p.title.slice(0, 50), 'ok'); loadSubs(); poll(true);
+              } }),
+              h('button', { class: 'icon-btn tiny', title: 'Yok say', 'aria-label': 'Yok say', onclick: async () => {
+                await api('subs_dismiss', { id: s.id, ids: [p.id] }); loadSubs();
+              } }, icon('i-x')))));
+        }
+        box.append(rows);
+      }
+      li.append(box);
+    }
+    list.append(li);
+  }
+}
+let subWasChecking = false;
+function handleSubPoll(d) {
+  const badge = $('#subsBadge');
+  badge.hidden = !d.sub_new; badge.textContent = d.sub_new;
+  for (const ev of d.sub_events || []) {
+    toast(ev.auto ? `${ev.sub}: ${ev.count} yeni video kuyruğa eklendi.` : `${ev.sub}: ${ev.count} yeni video var.`, 'ok',
+      ev.auto ? null : { label: 'Göster', fn: () => show('subs') });
+  }
+  const viewing = !$('#view-subs').hidden;
+  if (viewing && ((d.sub_events || []).length || subWasChecking !== !!d.sub_checking)) loadSubs();
+  subWasChecking = !!d.sub_checking;
+}
+$$('#subMode button').forEach(bt => bt.addEventListener('click', () => {
+  $$('#subMode button').forEach(x => x.classList.toggle('on', x === bt));
+  $('#subQuality').disabled = bt.dataset.v === 'audio';
+}));
+async function addSub() {
+  const btn = $('#subAddBtn');
+  const url = $('#subUrl').value.trim();
+  if (!url) { $('#subUrl').focus(); return; }
+  btn.disabled = true;
+  const old = btn.lastChild.textContent;
+  btn.lastChild.textContent = 'Liste alınıyor…';
+  try {
+    const res = await api('subs_add', {
+      url, mode: $('#subMode .on').dataset.v, quality: $('#subQuality').value, auto: $('#subAuto').checked,
+    });
+    toast(`Takip ediliyor: ${res.title} (${res.count} mevcut video görüldü sayıldı).`, 'ok');
+    $('#subUrl').value = '';
+    loadSubs();
+  } catch (e) { toast(e.message, 'err'); }
+  finally { btn.disabled = false; btn.lastChild.textContent = old; }
+}
+$('#subAddBtn').addEventListener('click', addSub);
+$('#subUrl').addEventListener('keydown', e => { if (e.key === 'Enter') addSub(); });
+$('#subsCheckAll').addEventListener('click', async () => { await api('subs_check'); toast('Tüm takipler denetleniyor.', 'info'); setTimeout(loadSubs, 400); poll(true); });
+
 /* ================================================================== ayarlar */
 async function saveSetting(changes) {
   try {
@@ -1054,7 +1187,7 @@ document.addEventListener('keydown', e => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
   if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); show('home'); pasteFromClipboard(); }
   else if (!typing && (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l'))) { e.preventDefault(); show('home'); input.focus(); }
-  else if (e.altKey && ['1', '2', '3'].includes(e.key)) { e.preventDefault(); show(['home', 'history', 'settings'][+e.key - 1]); }
+  else if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); show(['home', 'subs', 'history', 'settings'][+e.key - 1]); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(true); checkClipboard(); } });
 
