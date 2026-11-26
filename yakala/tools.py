@@ -189,11 +189,116 @@ def pick_file(initial: str = "") -> str:
         return ""
 
 
+EXECUTABLE_EXTS = {".exe", ".bat", ".cmd", ".com", ".scr", ".pif", ".msi", ".hta", ".js", ".jse", ".vbs",
+                   ".vbe", ".wsf", ".ps1", ".lnk", ".url", ".cpl", ".jar", ".reg"}
+
+
 def open_path(path: str) -> bool:
     if path and os.path.exists(path):
+        if os.path.isfile(path) and os.path.splitext(path)[1].lower() in EXECUTABLE_EXTS:
+            return reveal_path(path)  # çalıştırılabilir dosyayı açma, yalnızca göster
         os.startfile(path)  # type: ignore[attr-defined]
         return True
     return False
+
+
+def copy_files(paths: list[str]) -> bool:
+    """Dosyaları Explorer'daki 'Kopyala' gibi panoya koyar (WhatsApp, Discord, Explorer'a yapıştırılabilir)."""
+    paths = [os.path.abspath(p) for p in paths if p and os.path.isfile(p)]
+    if os.name != "nt" or not paths:
+        return False
+    import struct
+
+    CF_HDROP, GMEM_MOVEABLE = 15, 0x0002
+    user32, kernel32 = ctypes.windll.user32, ctypes.windll.kernel32
+    kernel32.GlobalAlloc.restype = ctypes.c_void_p
+    kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+    kernel32.GlobalLock.restype = ctypes.c_void_p
+    kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+    kernel32.GlobalFree.argtypes = [ctypes.c_void_p]
+    user32.SetClipboardData.argtypes = [ctypes.c_uint, ctypes.c_void_p]
+    user32.SetClipboardData.restype = ctypes.c_void_p
+    # DROPFILES: pFiles, pt.x, pt.y, fNC, fWide  -> ardından UTF-16 ve iki null ile biten yollar
+    header = struct.pack("<IiiII", 20, 0, 0, 0, 1)
+    body = ("\0".join(paths) + "\0\0").encode("utf-16-le")
+    data = header + body
+    h = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+    if not h:
+        return False
+    ptr = kernel32.GlobalLock(h)
+    ctypes.memmove(ptr, data, len(data))
+    kernel32.GlobalUnlock(h)
+    for _ in range(10):
+        if user32.OpenClipboard(None):
+            break
+        threading.Event().wait(0.05)
+    else:
+        kernel32.GlobalFree(h)
+        return False
+    try:
+        user32.EmptyClipboard()
+        if not user32.SetClipboardData(CF_HDROP, h):
+            kernel32.GlobalFree(h)
+            return False
+        return True
+    finally:
+        user32.CloseClipboard()
+
+
+def clipboard_files() -> list[str]:
+    """Panodaki dosya listesi (test ve doğrulama için)."""
+    if os.name != "nt":
+        return []
+    user32, shell32 = ctypes.windll.user32, ctypes.windll.shell32
+    user32.GetClipboardData.restype = ctypes.c_void_p
+    shell32.DragQueryFileW.argtypes = [ctypes.c_void_p, ctypes.c_uint, ctypes.c_wchar_p, ctypes.c_uint]
+    if not user32.OpenClipboard(None):
+        return []
+    try:
+        h = user32.GetClipboardData(15)
+        if not h:
+            return []
+        n = shell32.DragQueryFileW(h, 0xFFFFFFFF, None, 0)
+        out = []
+        for i in range(n):
+            buf = ctypes.create_unicode_buffer(1024)
+            shell32.DragQueryFileW(h, i, buf, 1024)
+            out.append(buf.value)
+        return out
+    finally:
+        user32.CloseClipboard()
+
+
+def keep_awake(on: bool):
+    """İndirme sürerken uykuyu engelle. Çağıran iş parçacığına bağlıdır; aynı uzun ömürlü iş parçacığından çağır."""
+    if os.name != "nt":
+        return
+    ES_CONTINUOUS, ES_SYSTEM_REQUIRED = 0x80000000, 0x00000001
+    ctypes.windll.kernel32.SetThreadExecutionState(ES_CONTINUOUS | (ES_SYSTEM_REQUIRED if on else 0))
+
+
+def human_bytes(n: float) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return (f"{n:.0f}" if unit == "B" or n >= 100 else f"{n:.1f}".replace(".", ",")) + " " + unit
+        n /= 1024
+    return ""
+
+
+_proxy = {"url": ""}
+
+
+def set_proxy(url: str):
+    _proxy["url"] = (url or "").strip()
+
+
+def opener():
+    """Ayarlardaki HTTP(S) proxy'sine uyan urllib açıcısı (SOCKS urllib'de desteklenmez)."""
+    p = _proxy["url"]
+    if p and re.match(r"^https?://", p, re.I):
+        return urllib.request.build_opener(urllib.request.ProxyHandler({"http": p, "https": p}))
+    return urllib.request.build_opener()
 
 
 def reveal_path(path: str) -> bool:
@@ -220,19 +325,23 @@ class ThumbCache:
         self.limit = limit
         self.lock = threading.Lock()
         self._n = 0
+        self.by_url: dict[str, str] = {}
 
     def register(self, url: str | None) -> str | None:
         if not url or not re.match(r"^https?://", url):
             return None
         with self.lock:
-            for tok, u in self.urls.items():
-                if u == url:
-                    return tok
+            tok = self.by_url.get(url)
+            if tok and tok in self.urls:
+                self.urls.move_to_end(tok)
+                return tok
             self._n += 1
             tok = f"t{self._n:x}{os.urandom(3).hex()}"
             self.urls[tok] = url
+            self.by_url[url] = tok
             while len(self.urls) > self.limit * 3:
-                self.urls.popitem(last=False)
+                _, old = self.urls.popitem(last=False)
+                self.by_url.pop(old, None)
             return tok
 
     def url_of(self, tok: str) -> str | None:
@@ -275,7 +384,7 @@ def fetch_bytes(url: str, limit: int = 12 << 20) -> tuple[bytes, str]:
     if ref:
         headers["Referer"] = ref
     req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req, timeout=20) as r:
+    with opener().open(req, timeout=20) as r:
         body = r.read(limit + 1)
         if len(body) > limit:
             raise ValueError("çok büyük")

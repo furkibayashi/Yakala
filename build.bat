@@ -14,6 +14,7 @@ py -m PyInstaller --noconfirm --clean --onedir --windowed ^
   --collect-all webview ^
   --collect-all imageio_ffmpeg ^
   --collect-all curl_cffi ^
+  --collect-all segno ^
   Yakala.pyw
 echo.
 echo Hazir: dist\Yakala\Yakala.exe

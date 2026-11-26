@@ -126,6 +126,13 @@ class Subscriptions:
                 })
             return out
 
+    def pending_count(self) -> int:
+        with self.lock:
+            return sum(len(x.get("pending", [])) for x in self.store.data)
+
+    def any_checking(self) -> bool:
+        return bool(self.checking)
+
     def take_events(self) -> list[dict]:
         with self.lock:
             ev, self.events = self.events, []
@@ -200,11 +207,14 @@ class Subscriptions:
                 sub["pending"] = [p for p in sub.get("pending", []) if ids and p["id"] not in ids]
                 self.store.save()
 
-    def _enqueue(self, sub: dict, entry: dict):
+    def _enqueue(self, sub: dict, entry: dict) -> bool:
+        if not str(entry.get("url") or "").startswith("http"):
+            return False
         try:
             self.engine.submit({"url": entry["url"], "mode": sub["mode"], "quality": sub["quality"]})
+            return True
         except Exception:  # noqa: BLE001
-            pass
+            return False
 
     def check(self, sid: str):
         with self.lock:
@@ -243,8 +253,14 @@ class Subscriptions:
                     self.events.append({"sub": sub["title"], "count": len(new), "auto": bool(sub.get("auto"))})
             self.store.save()
             auto_new = new if data and new and sub.get("auto") else []
-        for e in reversed(auto_new):
-            self._enqueue(sub, e)
+        failed = [e for e in reversed(auto_new) if not self._enqueue(sub, e)]
+        if failed:  # kuyruğa eklenemeyenler kaybolmasın, "yeni" olarak beklesin
+            with self.lock:
+                cur = self._get(sid)
+                if cur:
+                    cur["pending"] = (failed + cur.get("pending", []))[:PENDING_LIMIT]
+                    cur["downloaded"] = max(0, cur.get("downloaded", 0) - len(failed))
+                    self.store.save()
 
     def check_all(self, only_due: bool = False):
         minutes = int(self.settings.get("sub_interval") or 60)

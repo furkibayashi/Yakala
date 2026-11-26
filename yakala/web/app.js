@@ -175,6 +175,12 @@ function chime() {
     });
   } catch { /* ses yoksa sessiz geç */ }
 }
+async function copyFiles(paths) {
+  try {
+    const ok = await api('copy_file', { paths });
+    toast(ok ? 'Dosya kopyalandı. WhatsApp, Discord ya da bir klasöre Ctrl+V ile yapıştır.' : 'Dosya bulunamadı; taşınmış olabilir.', ok ? 'ok' : 'err');
+  } catch (e) { toast(e.message, 'err'); }
+}
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); return true; } catch { /* yedek yol */ }
   const ta = h('textarea', { style: 'position:fixed;opacity:0' });
@@ -189,6 +195,7 @@ function show(view) {
   $('.main').scrollTop = 0;
   if (view === 'history') loadHistory();
   if (view === 'subs') loadSubs();
+  if (view === 'phone') loadLan();
   if (view === 'settings') refreshSystem();
   if (view === 'home') setTimeout(() => $('#urlInput').focus(), 30);
 }
@@ -242,6 +249,8 @@ $('#goBtn').addEventListener('click', analyze);
 $('#pasteBtn').addEventListener('click', pasteFromClipboard);
 
 function resetCatcher(keepStage = false) {
+  analyzeSeq++;
+  $('#goBtn').classList.remove('busy');
   input.value = '';
   autosize(); setLens();
   if (!keepStage) setStage(null);
@@ -575,7 +584,9 @@ function playlistCard(r, rerender) {
     const on = sel.entries.has(e.index);
     const cb = h('input', { type: 'checkbox', tabindex: '-1' });
     cb.checked = on;
-    list.append(h('label', { class: 'entry' + (on ? '' : ' off'), onclick: ev => {
+    list.append(h('label', { class: 'entry' + (on ? '' : ' off'), tabindex: '0', role: 'checkbox', 'aria-checked': String(on),
+      onkeydown: ev => { if (ev.key === ' ' || ev.key === 'Enter') { ev.preventDefault(); ev.currentTarget.click(); } },
+      onclick: ev => {
       ev.preventDefault();
       sel.entries.has(e.index) ? sel.entries.delete(e.index) : sel.entries.add(e.index);
       rerender();
@@ -711,18 +722,25 @@ let jobsCache = [];
 let pollTimer = null;
 let ffState = {}, updState = {};
 
+let pollBusy = false, pollAgain = false;
 async function poll(immediate) {
   clearTimeout(pollTimer);
+  if (pollBusy) { pollAgain = true; return; }
+  pollBusy = true;
   let active = false;
   try {
     const d = await api('jobs');
     jobsCache = d.jobs;
     renderJobs(d.jobs);
     ffState = d.ffmpeg; updState = d.update;
+    $('#phoneDot').hidden = !d.lan_on;
     handleSubPoll(d);
     renderSysProgress();
     active = d.jobs.some(j => j.status === 'running' || j.status === 'queued') || d.ffmpeg.running || d.update.running || d.sub_checking;
   } catch { /* sunucu kısa süreliğine meşgul olabilir */ }
+  pollBusy = false;
+  clearTimeout(pollTimer);
+  if (pollAgain) { pollAgain = false; pollTimer = setTimeout(poll, 0); return; }
   pollTimer = setTimeout(poll, document.hidden ? 3000 : active ? 450 : 2000);
 }
 
@@ -737,6 +755,7 @@ function jobActions(j) {
     case 'paused': return [b('i-play', 'Devam et', act('resume')), b('i-x', 'İptal et', act('cancel'), 'danger')];
     case 'done': return [
       b('i-open', j.files.length > 1 ? 'İlk dosyayı aç' : 'Dosyayı aç', () => api('open', { path: file }).then(ok => ok || toast('Dosya bulunamadı; taşınmış olabilir.', 'err'))),
+      b('i-copy', 'Dosyayı kopyala (WhatsApp, Discord ya da klasöre yapıştır)', () => copyFiles(j.files)),
       b('i-folder', 'Klasörde göster', () => api('reveal', { path: file })),
       b('i-x', 'Listeden kaldır', act('remove')),
     ];
@@ -824,7 +843,7 @@ function renderJobs(jobs) {
     if (before && before !== j.status) {
       if (j.status === 'done') {
         chime();
-        toast('İndirildi: ' + j.title.slice(0, 60), 'ok', { label: 'Aç', fn: () => api('open', { path: j.files[0] }) });
+        toast('İndirildi: ' + j.title.slice(0, 60), 'ok', { label: 'Kopyala', fn: () => copyFiles(j.files) });
       } else if (j.status === 'error') {
         toast(j.title.slice(0, 40) + ': ' + j.error, 'err');
       }
@@ -885,6 +904,7 @@ function renderHistory() {
       h('div', { class: 'h-actions' },
         it.exists ? b('i-open', 'Dosyayı aç', () => api('open', { path: file })) : null,
         it.exists ? b('i-folder', 'Klasörde göster', () => api('reveal', { path: file })) : null,
+        it.exists ? b('i-paste', 'Dosyayı kopyala (WhatsApp, Discord ya da klasöre yapıştır)', () => copyFiles(it.files)) : null,
         b('i-retry', 'Yeniden indir', () => { show('home'); input.value = it.url; autosize(); setLens(); analyze(); }),
         b('i-copy', 'Bağlantıyı kopyala', () => copyText(it.url).then(() => toast('Bağlantı kopyalandı.', 'ok'))),
         b('i-trash', 'Geçmişten sil', async () => { await api('history_remove', { id: it.id }); loadHistory(); }, 'danger'))));
@@ -1029,11 +1049,44 @@ $('#subAddBtn').addEventListener('click', addSub);
 $('#subUrl').addEventListener('keydown', e => { if (e.key === 'Enter') addSub(); });
 $('#subsCheckAll').addEventListener('click', async () => { await api('subs_check'); toast('Tüm takipler denetleniyor.', 'info'); setTimeout(loadSubs, 400); poll(true); });
 
+/* ================================================================== telefon */
+let lanTimer = null;
+async function loadLan() {
+  clearTimeout(lanTimer);
+  let st;
+  try { st = await api('lan'); } catch (e) { toast(e.message, 'err'); return; }
+  renderLan(st);
+  if (!$('#view-phone').hidden) lanTimer = setTimeout(loadLan, 5000);
+}
+function renderLan(st) {
+  const on = st.enabled;
+  $('#phoneDot').hidden = !on;
+  $('#lanBody').hidden = !on || !st.qr;
+  $('#lanAddrRow').hidden = !on || !st.url;
+  if (st.qr && $('#lanQr').dataset.src !== st.qr) { $('#lanQr').src = st.qr; $('#lanQr').dataset.src = st.qr; }
+  $('#lanAddr').textContent = st.url ? st.url.replace(/\?k=.*/, '') : '';
+  $('#lanAddr').dataset.full = st.url || '';
+  $('#lanState').textContent = on
+    ? (st.addresses.length ? `Açık. Telefonun ${st.addresses[0]} adresindeki bu bilgisayara bağlanabilir.` : 'Açık ama bilgisayar bir ağa bağlı görünmüyor.')
+    : 'Kapalı. Açınca bu bilgisayar ev ağındaki telefonuna indirdiklerini sunar.';
+  const err = $('#lanError');
+  err.hidden = !st.error; err.textContent = st.error || '';
+  const c = st.clients || [];
+  $('#lanClients').textContent = c.length ? c.map(x => `${x.ip} (${relTime(x.seen)})`).join(', ') : 'Son bir saatte bağlanan yok.';
+}
+$('#lanCopy').addEventListener('click', () => copyText($('#lanAddr').dataset.full).then(() => toast('Adres kopyalandı. Telefonuna kendin gönder; içinde erişim anahtarı var.', 'ok')));
+$('#lanRotate').addEventListener('click', async () => {
+  if (!confirm('Erişim anahtarı yenilensin mi? Bağlı telefonların erişimi biter.')) return;
+  renderLan(await api('lan_rotate'));
+  toast('Anahtar yenilendi. Telefonda QR kodu yeniden okut.', 'ok');
+});
+
 /* ================================================================== ayarlar */
 async function saveSetting(changes) {
   try {
     settings = await api('settings', { changes });
     syncSettings();
+    if (Object.keys(changes).some(k => k.startsWith('lan_'))) setTimeout(loadLan, 250);
   } catch (e) { toast(e.message, 'err'); }
 }
 function syncSettings() {
@@ -1064,19 +1117,22 @@ $('#concMinus').addEventListener('click', () => saveSetting({ concurrency: Math.
 $('#concPlus').addEventListener('click', () => saveSetting({ concurrency: Math.min(6, settings.concurrency + 1) }));
 $('#sDirOpen').addEventListener('click', () => api('open_folder'));
 $('#sDirPick').addEventListener('click', async e => {
-  e.currentTarget.disabled = true;
+  const btn = e.currentTarget;
+  btn.disabled = true;
   try {
     const p = await api('pick_folder');
     if (p) { await saveSetting({ download_dir: p }); toast('İndirme klasörü değiştirildi.', 'ok'); }
-  } finally { e.currentTarget.disabled = false; }
+  } catch (err) { toast(err.message, 'err'); } finally { btn.disabled = false; }
 });
 $('#sCookiePick').addEventListener('click', async e => {
-  e.currentTarget.disabled = true;
+  const btn = e.currentTarget;
+  btn.disabled = true;
   try {
     const p = await api('pick_file');
     if (p) saveSetting({ cookies_file: p, cookies_mode: 'file' });
-  } finally { e.currentTarget.disabled = false; }
+  } catch (err) { toast(err.message, 'err'); } finally { btn.disabled = false; }
 });
+$('#openLog').addEventListener('click', () => api('open_log').then(ok => ok || toast('Henüz günlük dosyası yok.', 'info')));
 $('#ffInstall').addEventListener('click', async () => {
   await api('install_ffmpeg');
   poll(true);
@@ -1187,7 +1243,7 @@ document.addEventListener('keydown', e => {
   const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
   if (!typing && (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') { e.preventDefault(); show('home'); pasteFromClipboard(); }
   else if (!typing && (e.key === '/' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l'))) { e.preventDefault(); show('home'); input.focus(); }
-  else if (e.altKey && ['1', '2', '3', '4'].includes(e.key)) { e.preventDefault(); show(['home', 'subs', 'history', 'settings'][+e.key - 1]); }
+  else if (e.altKey && ['1', '2', '3', '4', '5'].includes(e.key)) { e.preventDefault(); show(['home', 'subs', 'phone', 'history', 'settings'][+e.key - 1]); }
 });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { poll(true); checkClipboard(); } });
 
@@ -1197,6 +1253,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { po
     const b = await api('bootstrap');
     settings = b.settings; system = b.system; window.APP_VERSION = b.version;
     syncSettings(); renderSystem();
+    if (b.restored) toast(`Önceki oturumdan ${b.restored} indirme kuyrukta duraklatıldı; devam etmek için ▶ düğmesine bas.`, 'info');
   } catch (e) { toast('Başlatılamadı: ' + e.message, 'err'); }
   autosize(); setLens();
   input.focus();

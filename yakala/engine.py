@@ -5,9 +5,13 @@ X fotoğrafları, TikTok fotoğraf slaytları) gallery-dl ile çözülür.
 """
 from __future__ import annotations
 
+import glob
+import hashlib
 import json
+import logging
 import os
 import re
+import shutil
 import threading
 import time
 import urllib.request
@@ -41,7 +45,7 @@ PP_STAGES = {
 }
 
 
-class Cancelled(Exception):
+class Cancelled(yt_dlp.utils.DownloadCancelled):
     pass
 
 
@@ -156,6 +160,9 @@ def _dig(d: dict, *paths):
 
 
 SIZE_LIMITS = (10, 25, 50)
+MEDIA_EXTS = {"jpg", "jpeg", "png", "webp", "gif", "heic", "avif", "bmp", "mp4", "mov", "webm", "m4v", "mkv",
+              "mp3", "m4a", "aac", "opus", "ogg", "wav", "flac"}
+log_ = logging.getLogger("yakala")
 
 
 def fit_format(formats: list[dict], duration, limit_mb: int, lang: str | None = None,
@@ -215,7 +222,7 @@ def write_caption(path: str, text: str):
 # --------------------------------------------------------------------------- #
 def _ytdl_extract(url: str, s: dict) -> dict:
     log = _Logger()
-    opts = _opts(_common_args(s) + ["--flat-playlist", "--no-playlist", "--skip-download"])
+    opts = _opts(_common_args(s) + ["--flat-playlist", "--no-playlist", "--skip-download", "--playlist-end", "2000"])
     opts.update(logger=log, quiet=True, no_warnings=True, noprogress=True, skip_download=True)
     with yt_dlp.YoutubeDL(opts) as ydl:
         try:
@@ -361,7 +368,9 @@ def _gallery_extract(url: str, s: dict, thumbs: tools.ThumbCache) -> tuple[dict,
 
     items, internal = [], []
     for i, (murl, kw) in enumerate(media, 1):
-        ext = str(kw.get("extension") or "").lower() or (murl.rsplit(".", 1)[-1].split("?")[0].lower()[:5] or "jpg")
+        ext = str(kw.get("extension") or "").lower() or murl.split("?")[0].rsplit("/", 1)[-1].rsplit(".", 1)[-1].lower()
+        if ext not in MEDIA_EXTS:
+            ext = "mp4" if murl.startswith("ytdl:") or "video" in str(kw.get("type") or "") else "jpg"
         if murl.startswith("ytdl:"):
             ext = "mp4"
         is_video = ext in VIDEO_EXTS or murl.startswith("ytdl:")
@@ -369,7 +378,11 @@ def _gallery_extract(url: str, s: dict, thumbs: tools.ThumbCache) -> tuple[dict,
                      "user.name", "user.username", "uploader", "nick") or ""
         post = _dig(kw, "post_shortcode", "shortcode", "tweet_id", "post_id", "id", "media_id") or ""
         num = kw.get("num") or i
-        stem = _sanitize(f"{owner}_{post}_{num}" if owner and post else (kw.get("filename") or f"medya_{i}"), 120)
+        if owner and post:
+            stem = _sanitize(f"{owner}_{post}_{num}", 120)
+        else:
+            digest = hashlib.sha1(murl.split("?")[0].encode()).hexdigest()[:8]
+            stem = _sanitize(f"{kw.get('category') or 'medya'}_{kw.get('filename') or i}_{digest}", 120)
         thumb_src = murl if not is_video else _dig(kw, "display_url", "thumbnail", "thumbnail_url", "cover",
                                                     "image", "preview", "poster")
         if isinstance(thumb_src, str) and thumb_src.startswith("ytdl:"):
@@ -508,6 +521,8 @@ class Job:
         self.pause_flag = False
         self.label = ""
         self.size = 0
+        self.recorded = False
+        self.restored = bool(meta.get("_restored"))
         self._update_label()
 
     def _update_label(self):
@@ -560,6 +575,49 @@ class Engine:
         self.jobs: "OrderedDict[str, Job]" = OrderedDict()
         self.analyses: "OrderedDict[str, tuple[dict, list[dict]]]" = OrderedDict()
         self.lock = threading.RLock()
+        self.queue_store = config.JsonStore(config.app_dir() / "queue.json", [])
+        self.restored = self._restore_queue()
+        threading.Thread(target=self._awake_loop, daemon=True).start()
+
+    # ---- kalıcı kuyruk --------------------------------------------------- #
+    def _restore_queue(self) -> int:
+        n = 0
+        for d in list(self.queue_store.data):
+            try:
+                url = d["url"]
+                if not str(url).startswith("http"):
+                    continue
+                meta = {k: d.get(k) for k in ("title", "uploader", "platform", "kind_name")}
+                meta.update(_needs_analysis=True, _restored=True)
+                job = Job(url, d.get("mode") or "video", dict(d.get("opts") or {}), meta)
+                job.status, job.stage = "paused", "Önceki oturumdan; devam etmek için ▶"
+                self.jobs[job.id] = job
+                n += 1
+            except (KeyError, TypeError):
+                continue
+        return n
+
+    def _save_queue(self):
+        with self.lock:
+            keep = [{"url": j.url, "mode": "video" if j.mode == "gallery" else j.mode,
+                     "opts": {k: v for k, v in j.opts.items() if not k.startswith("_") or k == "_is_playlist"},
+                     "title": j.title, "uploader": j.uploader, "platform": j.platform, "kind_name": j.kind_name}
+                    for j in self.jobs.values() if j.status in ("queued", "running", "paused")]
+            self.queue_store.data = keep
+        try:
+            self.queue_store.save()
+        except OSError:
+            pass
+
+    def _awake_loop(self):
+        """İndirme sürerken bilgisayarın uykuya geçmesini engelle (ayar açıksa)."""
+        awake = False
+        while True:
+            want = bool(self.settings.get("keep_awake")) and self.active_count() > 0
+            if want != awake:
+                tools.keep_awake(want)
+                awake = want
+            time.sleep(5)
 
     # ---- analiz ---------------------------------------------------------- #
     def analyze(self, url: str) -> dict:
@@ -628,11 +686,37 @@ class Engine:
             raise ValueError("Geçerli bir bağlantı gerekli.")
         else:
             meta["_needs_analysis"] = True
+        self._check_disk(s, cached, mode, opts)
         job = Job(url, mode, opts, meta)
         with self.lock:
             self.jobs[job.id] = job
         self._pump()
+        self._save_queue()
         return job.to_dict()
+
+    @staticmethod
+    def _check_disk(s: dict, cached, mode: str, opts: dict):
+        target = Path(s.get("download_dir") or config.default_download_dir())
+        probe = target
+        while not probe.exists() and probe.parent != probe:
+            probe = probe.parent
+        try:
+            free = shutil.disk_usage(probe).free
+        except OSError:
+            return
+        need = 150 * 1024 * 1024
+        if cached and cached[0].get("type") == "video":
+            res = cached[0]
+            if mode == "audio":
+                need = max(need, res.get("audio_size") or 0)
+            else:
+                qs = res.get("qualities") or []
+                q = next((x for x in qs if str(x["res"]) == str(opts.get("quality"))), qs[0] if qs else None)
+                need = max(need, (q or {}).get("size") or 0)
+            need = int(need * 1.15)
+        if free < need:
+            raise ValueError(f"Diskte yeterli yer yok: yaklaşık {tools.human_bytes(need)} gerekli, "
+                             f"{tools.human_bytes(free)} boş. Ayarlardan başka bir indirme klasörü seçebilirsin.")
 
     def list(self) -> list[dict]:
         with self.lock:
@@ -657,6 +741,7 @@ class Engine:
             if not job:
                 return False
             if action == "cancel":
+                job.pause_flag = False
                 if job.status == "running":
                     job.cancel_flag = True
                     job.stage = "İptal ediliyor"
@@ -678,6 +763,7 @@ class Engine:
                     self._cleanup_parts(job)
                 del self.jobs[job_id]
         self._pump()
+        self._save_queue()
         return True
 
     def clear_finished(self):
@@ -705,6 +791,12 @@ class Engine:
                     pass
         job.parts.clear()
         for stem in list(job.stems):
+            for pattern in (".*.part", ".*.part-Frag*", ".*.ytdl", ".part", ".ytdl"):
+                for cand in glob.glob(glob.escape(stem) + pattern):
+                    try:
+                        os.remove(cand)
+                    except OSError:
+                        pass
             for ext in (".jpg", ".webp", ".png", ".temp.mp4", ".temp.mkv"):
                 try:
                     if os.path.isfile(stem + ext):
@@ -724,6 +816,11 @@ class Engine:
     def _run(self, job: Job):
         s = self.settings.snapshot()
         job.started = time.time()
+        job.items_done = 0
+        job.progress = 0.0
+        job.done_bytes = job.total_bytes = 0
+        job.warning = ""
+        tools.set_proxy(s.get("proxy") or "")
         try:
             if job.needs_analysis:
                 job.stage = "Bağlantı inceleniyor"
@@ -748,11 +845,14 @@ class Engine:
             job.check()
             if not job.files:
                 raise RuntimeError("Dosya oluşturulamadı.")
+            job.stage = "Kaydediliyor"
+            job.speed = job.eta = None
+            self._record(job)          # önce geçmişe yaz, sonra "tamamlandı" de
             job.status, job.stage, job.progress = "done", "Tamamlandı", 1.0
             job.finished = time.time()
-            job.speed = job.eta = None
-            self._record(job)
         except Exception as e:  # noqa: BLE001
+            if not isinstance(e, Cancelled):
+                log_.warning("İş %s hata: %s", job.url, e)
             job.speed = job.eta = None
             if job.pause_flag:
                 job.status, job.stage = "paused", "Duraklatıldı"
@@ -760,10 +860,14 @@ class Engine:
                 job.status, job.stage = "canceled", "İptal edildi"
                 self._cleanup_parts(job)
             elif job.files and all(os.path.exists(f) for f in job.files):
-                job.status, job.stage, job.progress = "done", "Tamamlandı", 1.0
                 job.warning = "Bazı son işlemler yapılamadı: " + tools.friendly_error(str(e))
+                if not job.recorded:
+                    try:
+                        self._record(job)
+                    except Exception:  # noqa: BLE001
+                        log_.exception("Geçmişe yazılamadı")
+                job.status, job.stage, job.progress = "done", "Tamamlandı", 1.0
                 job.finished = time.time()
-                self._record(job)
             else:
                 job.status, job.stage = "error", "Hata"
                 job.error = tools.friendly_error(str(e))
@@ -772,6 +876,7 @@ class Engine:
             if job.status != "running":
                 job.cancel_flag = job.pause_flag = False
             self._pump()
+            self._save_queue()
 
     def _ytdl_args(self, job: Job, s: dict, outdir: Path, template: str | None = None, force_video=False) -> list[str]:
         o = job.opts
@@ -815,12 +920,16 @@ class Engine:
             a += ["--embed-metadata"]
         tmpl = template or config.FILENAME_TEMPLATES.get(s.get("filename"), config.FILENAME_TEMPLATES["title_id"])
         if job.opts.get("_is_playlist") and not force_video:
-            tmpl = "%(playlist_title,playlist|Liste).80B/" + tmpl
+            tmpl = "%(playlist_title,playlist|Liste).80B/%(playlist_index)03d - " + tmpl
             a += ["--yes-playlist", "--ignore-errors"]
             if o.get("entries"):
                 a += ["-I", ",".join(str(i) for i in sorted(set(o["entries"])))]
         else:
             a += ["--no-playlist"]
+        # Windows'un 260 karakter yol sınırına takılmamak için başlığı (ortasından değil) sonundan kısalt.
+        avail = 225 - len(str(outdir)) - (95 if job.opts.get("_is_playlist") and not force_video else 0) - 35
+        title_bytes = max(30, min(100, avail))
+        tmpl = re.sub(r"\.1[02]0B", f".{title_bytes}B", tmpl)
         a += ["-P", str(outdir), "-o", tmpl]
         return a
 
@@ -894,6 +1003,7 @@ class Engine:
                 job.stage = "Klip indirilip kesiliyor"
 
         def post_hook(filename):
+            calls[0] += 1
             if filename and filename not in job.files:
                 job.files.append(filename)
                 info = getattr(job, "last_info", None) or {}
@@ -912,17 +1022,18 @@ class Engine:
                     progress_hooks=[hook], postprocessor_hooks=[pp_hook], post_hooks=[post_hook])
         job.stage = "Bağlanıyor"
         before = len(job.files)
+        calls = [0]
         with yt_dlp.YoutubeDL(opts) as ydl:
             try:
                 ydl.download([url])
             except Exception as e:  # noqa: BLE001
                 job.check()
-                if len(job.files) > before and job.opts.get("_is_playlist"):
+                if calls[0] and job.opts.get("_is_playlist"):
                     job.warning = f"Bazı videolar indirilemedi: {tools.friendly_error(str(e))}"
                     return
                 raise RuntimeError(log.errors[-1] if log.errors else str(e)) from e
         job.check()
-        if len(job.files) == before:
+        if not calls[0]:
             raise RuntimeError(log.errors[-1] if log.errors else "İndirilecek dosya bulunamadı.")
         if job.opts.get("split_chapters") and not force_video:
             for d in sorted(outdir.iterdir()):
@@ -962,7 +1073,8 @@ class Engine:
     def _http_download(self, job: Job, url: str, target: Path, i: int, n: int):
         job.stage = "Medya indiriliyor" if n == 1 else f"Medya indiriliyor ({i + 1}/{n})"
         if target.exists() and target.stat().st_size > 0:
-            job.files.append(str(target))
+            if str(target) not in job.files:
+                job.files.append(str(target))
             return
         part = str(target) + ".part"
         job.parts.add(part)
@@ -972,7 +1084,7 @@ class Engine:
             headers["Referer"] = ref
         req = urllib.request.Request(url, headers=headers)
         start = time.time()
-        with urllib.request.urlopen(req, timeout=30) as r, open(part, "wb") as f:
+        with tools.opener().open(req, timeout=30) as r, open(part, "wb") as f:
             total = int(r.headers.get("Content-Length") or 0)
             got = 0
             while True:
@@ -990,9 +1102,11 @@ class Engine:
                     job.progress = min(0.999, (i + got / total) / n)
         os.replace(part, target)
         job.parts.discard(part)
-        job.files.append(str(target))
+        if str(target) not in job.files:
+            job.files.append(str(target))
 
     def _record(self, job: Job):
+        job.recorded = True
         size = 0
         for f in job.files:
             try:

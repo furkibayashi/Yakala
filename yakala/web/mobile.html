@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#191530">
+<title>Yakala</title>
+<link rel="icon" href="/m/icon.png">
+<link rel="apple-touch-icon" href="/m/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400..700&display=swap">
+<link rel="stylesheet" href="/m/mobile.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><img src="/m/icon.png" alt=""><div><b>Yakala</b><span id="pcName">Bilgisayarın</span></div></div>
+  <button class="round" id="refreshBtn" aria-label="Yenile">
+    <svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M20 12a8 8 0 1 1-2.3-5.7M20 4v4.5h-4.5"/></svg>
+  </button>
+</header>
+
+<main>
+  <section class="send" id="sendBox" hidden>
+    <h2>Bilgisayara indir</h2>
+    <p>Telefonda gördüğün bir bağlantıyı yapıştır; bilgisayar indirsin, sonra buradan alırsın.</p>
+    <textarea id="sendText" rows="2" placeholder="https://… bağlantısını yapıştır" spellcheck="false" autocomplete="off"></textarea>
+    <div class="send-row">
+      <div class="seg" id="sendMode"><button data-v="video" class="on">Video</button><button data-v="audio">Ses</button></div>
+      <button class="primary" id="sendBtn">Gönder</button>
+    </div>
+  </section>
+
+  <section class="queue" id="queueBox" hidden>
+    <h2>Bilgisayarda iniyor</h2>
+    <ul id="queueList"></ul>
+  </section>
+
+  <section class="library">
+    <div class="lib-head">
+      <h2 id="libTitle">İndirdiklerin</h2>
+    </div>
+    <input class="search" id="search" type="search" placeholder="Ara">
+    <div class="chips" id="chips">
+      <button class="on" data-f="all">Tümü</button>
+      <button data-f="video">Video</button>
+      <button data-f="audio">Ses</button>
+      <button data-f="image">Fotoğraf</button>
+    </div>
+    <ul class="items" id="items"></ul>
+  </section>
+</main>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-bg" id="sheetBg"></div>
+  <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="grab"></div>
+    <div id="player"></div>
+    <h3 id="sheetTitle"></h3>
+    <p class="meta" id="sheetMeta"></p>
+    <ul class="files" id="sheetFiles"></ul>
+    <button class="ghost" id="sheetClose">Kapat</button>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="/m/mobile.js"></script>
+</body>
+</html>

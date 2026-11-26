@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 from . import config, platforms, tools, updater
 from .engine import AnalyzeError, Engine
 from .subscriptions import SubError, Subscriptions
+from .lanshare import LanShare
 
 TOKEN = secrets.token_urlsafe(24)
 
@@ -24,6 +25,9 @@ class App:
         self.thumbs = tools.ThumbCache()
         self.engine = Engine(self.settings, self.history, self.thumbs)
         self.subs = Subscriptions(self.engine, self.settings, self.thumbs)
+        self.lan = LanShare(self)
+        self.lan.apply()
+        tools.set_proxy(self.settings.get("proxy") or "")
         if self.settings.get("auto_update"):
             updater.maybe_auto(tools.helper_cmd, tools.run_hidden)
         self.web = config.resource_dir() / "web"
@@ -36,6 +40,7 @@ class App:
             return {
                 "settings": self.settings.snapshot(),
                 "version": config.APP_VERSION,
+                "restored": self.engine.restored,
                 "system": self.system_info(),
             }
         if name == "detect":
@@ -60,11 +65,11 @@ class App:
             mode = "audio" if body.get("mode") == "audio" else "video"
             return [e.submit({"url": u, "mode": mode}) for u in urls[:200]]
         if name == "jobs":
-            subs = self.subs.public()
             return {"jobs": e.list(), "ffmpeg": dict(tools.ffmpeg_install), "update": dict(e.update_state),
                     "sub_events": self.subs.take_events(),
-                    "sub_new": sum(len(x["pending"]) for x in subs),
-                    "sub_checking": any(x["checking"] for x in subs)}
+                    "sub_new": self.subs.pending_count(),
+                    "sub_checking": self.subs.any_checking(),
+                    "lan_on": bool(self.lan.srv)}
         if name.startswith("subs"):
             try:
                 return self.subs_api(name, body)
@@ -79,12 +84,28 @@ class App:
             return tools.open_path(self._resolve_path(body))
         if name == "reveal":
             return tools.reveal_path(self._resolve_path(body))
+        if name == "copy_file":
+            paths = [self._resolve_path({"path": p}) for p in (body.get("paths") or [body.get("path")])]
+            return tools.copy_files([p for p in paths if p])
+        if name == "open_log":
+            return tools.open_path(str(config.app_dir() / "yakala.log"))
         if name == "open_folder":
             d = self.settings.get("download_dir")
             os.makedirs(d, exist_ok=True)
             return tools.open_path(d)
         if name == "settings":
-            return self.settings.update(body.get("changes") or {})
+            changes = {k: v for k, v in (body.get("changes") or {}).items() if k != "lan_key"}
+            out = self.settings.update(changes)
+            if "proxy" in changes:
+                tools.set_proxy(out.get("proxy") or "")
+            if any(k.startswith("lan_") for k in changes):
+                self.lan.apply()
+            return out
+        if name == "lan":
+            return self.lan.status()
+        if name == "lan_rotate":
+            self.lan.rotate_key()
+            return self.lan.status()
         if name == "pick_folder":
             return tools.pick_folder(self.settings.get("download_dir"))
         if name == "pick_file":
@@ -210,7 +231,8 @@ def make_handler(app: App, port_ref: dict):
                                   {"Cache-Control": "no-store",
                                    "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; "
                                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                                   "font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'"})
+                                   "font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; "
+                                   "frame-ancestors 'none'", "X-Frame-Options": "DENY"})
             if path.startswith("/static/"):
                 rel = path[len("/static/"):]
                 target = (app.web / rel).resolve()

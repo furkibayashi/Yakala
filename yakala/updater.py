@@ -50,15 +50,31 @@ def active_dir() -> Path | None:
     return d if name and (d / "yt_dlp").is_dir() and (d / "gallery_dl").is_dir() else None
 
 
+_loaded = {"dir": None}
+
+
 def activate() -> str | None:
-    """yt_dlp/gallery_dl içe aktarılmadan önce çağrılmalı."""
+    """yt_dlp/gallery_dl içe aktarılmadan önce çağrılmalı. Güncel motor açılamazsa paketle gelene döner."""
     if "yt_dlp" in sys.modules or "gallery_dl" in sys.modules:
         return None
     d = active_dir()
-    if d and str(d) not in sys.path:
-        sys.path.insert(0, str(d))
-        return str(d)
-    return None
+    if not d or str(d) in sys.path:
+        return None
+    sys.path.insert(0, str(d))
+    try:
+        import gallery_dl  # noqa: F401
+        import yt_dlp  # noqa: F401
+    except Exception:  # noqa: BLE001
+        sys.path.remove(str(d))
+        for name in [m for m in sys.modules if m.split(".")[0] in ("yt_dlp", "yt_dlp_ejs", "gallery_dl")]:
+            del sys.modules[name]
+        try:
+            _active_file().unlink()
+        except OSError:
+            pass
+        return None
+    _loaded["dir"] = d
+    return str(d)
 
 
 def _vtuple(v: str) -> tuple:
@@ -171,8 +187,9 @@ def install(helper_cmd, run_hidden) -> dict:
         os.replace(tmp, target)
         prev = active_dir()
         _active_file().write_text(target.name, encoding="utf-8")
+        keep = {target, prev, _loaded["dir"]}   # çalışan süreç yüklediği motoru kullanmaya devam ediyor
         for old in engines_dir().iterdir():
-            if old.is_dir() and old not in (target, prev):
+            if old.is_dir() and old not in keep and not old.name.endswith(".tmp"):
                 shutil.rmtree(old, ignore_errors=True)
         return versions
     finally:

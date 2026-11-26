@@ -48,6 +48,7 @@
   <symbol id="i-arrow" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M5 12h13m-5-5.5L18.5 12 13 17.5"/></symbol>
   <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15ZM10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M10.5 18.2h3"/></symbol>
   <symbol id="i-logo" viewBox="0 0 32 32"><path fill="currentColor" d="M16 3a13 13 0 1 0 13 13A13 13 0 0 0 16 3Zm0 4.2a1.8 1.8 0 0 1 1.8 1.8v8.4l2.7-2.7a1.8 1.8 0 0 1 2.5 2.5l-5.7 5.7a1.8 1.8 0 0 1-2.6 0L9 17.2a1.8 1.8 0 0 1 2.5-2.5l2.7 2.7V9A1.8 1.8 0 0 1 16 7.2Z"/></symbol>
 </svg>
 
@@ -61,6 +62,9 @@
     </button>
     <button class="rail-btn" data-view="subs" aria-label="Takip">
       <svg><use href="#i-bell"/></svg><span>Takip</span><b class="rail-badge" id="subsBadge" hidden>0</b>
+    </button>
+    <button class="rail-btn" data-view="phone" aria-label="Telefon">
+      <svg><use href="#i-phone"/></svg><span>Telefon</span><b class="rail-dot" id="phoneDot" hidden></b>
     </button>
     <button class="rail-btn" data-view="history" aria-label="Geçmiş">
       <svg><use href="#i-history"/></svg><span>Geçmiş</span>
@@ -171,6 +175,60 @@
       </div>
       <ul class="subs" id="subsList"></ul>
       <p class="group-note" style="margin-top:12px">Denetimler Yakala açıkken yapılır.</p>
+    </section>
+
+    <!-- ================= TELEFON ================= -->
+    <section class="view" id="view-phone" hidden>
+      <header class="page-head">
+        <h1>Telefondan eriş</h1>
+        <p class="lede">İndirdiklerini telefonundan izle, dinle ya da telefona kaydet. Telefonda gördüğün bir bağlantıyı da bilgisayara indirtebilirsin.</p>
+      </header>
+
+      <div class="card phone-card">
+        <div class="phone-toggle">
+          <div>
+            <b>Telefondan erişim</b>
+            <span id="lanState">Kapalı. Açınca bu bilgisayar ev ağındaki telefonuna indirdiklerini sunar.</span>
+          </div>
+          <label class="switch big"><input type="checkbox" data-s="lan_enabled" id="lanSwitch"><i></i></label>
+        </div>
+
+        <div class="phone-body" id="lanBody" hidden>
+          <div class="qr-wrap"><img id="lanQr" alt="Telefondan erişim için QR kod"></div>
+          <ol class="steps">
+            <li><b>Aynı Wi-Fi</b><span>Telefon ve bilgisayar aynı ağa bağlı olmalı.</span></li>
+            <li><b>QR kodu okut</b><span>Telefonun kamerasını QR koda tut ve çıkan bağlantıya dokun.</span></li>
+            <li><b>Ana ekrana ekle</b><span>Tarayıcının paylaş menüsünden "Ana ekrana ekle" dersen uygulama gibi açılır.</span></li>
+          </ol>
+        </div>
+        <div class="phone-addr" id="lanAddrRow" hidden>
+          <span>Adres</span><code id="lanAddr"></code>
+          <button class="text-btn" id="lanCopy"><svg><use href="#i-copy"/></svg>Kopyala</button>
+        </div>
+        <p class="job-error" id="lanError" hidden></p>
+      </div>
+
+      <div class="settings" style="margin-top:26px">
+        <section class="set-group">
+          <h3>Telefon ayarları</h3>
+          <div class="set-row">
+            <div class="set-text"><b>Telefondan bağlantı gönderme</b><span>Telefondan gönderilen bağlantılar bu bilgisayarda indirilir.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="lan_allow_send"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Erişim anahtarını yenile</b><span>Daha önce bağlanan bütün telefonların erişimi biter; QR kodu yeniden okutman gerekir.</span></div>
+            <div class="set-ctrl"><button class="soft-btn" id="lanRotate"><svg><use href="#i-retry"/></svg>Yenile</button></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Kapı numarası</b><span>Başka bir program aynı numarayı kullanıyorsa değiştir.</span></div>
+            <div class="set-ctrl"><input class="text-input short" data-s="lan_port" type="number" min="1024" max="65535"></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Bağlanan cihazlar</b><span id="lanClients">Son bir saatte bağlanan yok.</span></div>
+          </div>
+        </section>
+        <p class="group-note">Yalnızca ev ağından gelen ve erişim anahtarını bilen cihazlar bağlanabilir; dosyalar internete açılmaz. Windows güvenlik duvarı izin isterse <b>Özel ağlar</b> için izin ver. Bilgisayar uyku moduna geçerse ya da Yakala kapanırsa telefondan erişilemez.</p>
+      </div>
     </section>
 
     <!-- ================= GEÇMİŞ ================= -->
@@ -328,6 +386,10 @@
             <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="clipboard_watch"><i></i></label></div>
           </div>
           <div class="set-row">
+            <div class="set-text"><b>İndirirken uyuma</b><span>Kuyrukta iş varken bilgisayarın uyku moduna geçmesini engeller.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="keep_awake"><i></i></label></div>
+          </div>
+          <div class="set-row">
             <div class="set-text"><b>Bitiş sesi</b><span>Bir indirme tamamlandığında kısa bir ses çalar.</span></div>
             <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="sound"><i></i></label></div>
           </div>
@@ -355,6 +417,10 @@
           <div class="set-row">
             <div class="set-text"><b>Motorları otomatik güncelle</b><span>Günde bir kez yeni yt-dlp ve gallery-dl sürümü olup olmadığına bakar ve arka planda indirir.</span></div>
             <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="auto_update"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Hata günlüğü</b><span>Bir sorun bildirirken bu dosyayı paylaşabilirsin; çerez ya da şifre içermez.</span></div>
+            <div class="set-ctrl"><button class="soft-btn" id="openLog">Günlüğü aç</button></div>
           </div>
           <p class="group-note">Platformlar sık sık değişiklik yapar. Bir şey indirilemezse önce motorları güncelle; yeni sürüm uygulama yeniden başlatılınca devreye girer.</p>
         </section>

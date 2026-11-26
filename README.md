@@ -32,6 +32,23 @@ Bunların dışında yt-dlp'nin desteklediği yüzlerce site de "Diğer site" ol
 - **Sürükle bırak:** tarayıcıdan bir bağlantıyı pencereye sürükle.
 - **Koyu / açık tema**, platformlara göre klasörleme, dosya adı şablonları, hız sınırı, proxy.
 
+### 1.3 ile gelenler
+
+- **Telefondan erişim:** Telefon sekmesinden aç, QR kodu telefonunla okut. İndirdiklerini telefonda izle,
+  dinle ya da telefona kaydet. Telefonda gördüğün bir bağlantıyı bilgisayara gönderip indirtebilirsin;
+  bitince telefondaki listede belirir. Yalnızca ev ağından ve erişim anahtarını bilen cihazlar bağlanabilir,
+  dosyalar internete açılmaz. Varsayılan olarak kapalıdır.
+- **Dosyayı kopyala:** biten bir indirmeyi tek tıkla panoya kopyala; WhatsApp Web, Discord ya da bir klasöre
+  Ctrl+V ile yapıştır.
+- **Kuyruk kaybolmaz:** uygulama kapansa da yarım kalan indirmeler bir sonraki açılışta duraklatılmış olarak gelir.
+- **İndirirken uyumaz:** kuyrukta iş varken bilgisayar uyku moduna geçmez (Ayarlar'dan kapatılabilir).
+- **Disk alanı kontrolü:** yer yetmeyecekse indirme başlamadan söyler.
+- **Numaralı oynatma listeleri:** liste videoları `001 - …` sırasıyla kaydedilir.
+- **Tek pencere:** Yakala ikinci kez açılırsa mevcut pencere öne gelir.
+- **Hata günlüğü:** Ayarlar → Sistem → Günlüğü aç.
+- **Düzeltmeler:** oynatma listesinde duraklat/iptal artık hemen durduruyor; galeride devam edince öğeler
+  atlanmıyor; uzun klasör yollarında dosya adları bozulmuyor; çok sayıda küçük kararlılık düzeltmesi.
+
 ### 1.2 ile gelenler
 
 - **Takip:** YouTube kanallarını, oynatma listelerini ve TikTok profillerini takip et. Yakala belirlediğin
@@ -84,7 +101,7 @@ Gereksinim: Windows 10/11 (64 bit). Arayüz için Microsoft Edge WebView2 kullan
 2. `kur.bat` dosyasına çift tıkla (ya da `py -m pip install -r requirements.txt`).
 3. `Yakala.pyw` dosyasına çift tıkla.
 
-`build.bat` aynı uygulamayı `dist\Yakala\Yakala.exe` olarak derler.
+`build.bat` aynı uygulamayı `dist\Yakala\Yakala.exe` olarak derler. Testler: `py -m pytest tests -q`
 
 FFmpeg ayrıca kurmana gerek yok; uygulamayla birlikte gelir. Ayarlar → Sistem bölümünden
 tek tıkla tam sürüme (ffprobe dahil) yükseltebilirsin.
@@ -97,7 +114,7 @@ tek tıkla tam sürüme (ffprobe dahil) yükseltebilirsin.
 | `Enter` | Bağlantıyı incele |
 | `Esc` | Alanı temizle |
 | `/` veya `Ctrl+L` | Bağlantı alanına git |
-| `Alt+1/2/3/4` | İndir / Takip / Geçmiş / Ayarlar |
+| `Alt+1` … `Alt+5` | İndir / Takip / Telefon / Geçmiş / Ayarlar |
 
 ## Instagram hikâyeleri ve giriş gerektiren içerikler
 

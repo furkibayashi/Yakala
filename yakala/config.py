@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 APP_NAME = "Yakala"
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 
 
 def app_dir() -> Path:
@@ -72,6 +72,11 @@ DEFAULTS: dict = {
     "quick_mode": "off",
     "save_caption": False,
     "sub_interval": "60",
+    "lan_enabled": False,
+    "lan_port": 8787,
+    "lan_key": "",
+    "lan_allow_send": True,
+    "keep_awake": True,
 }
 
 FILENAME_TEMPLATES = {
@@ -115,7 +120,14 @@ class JsonStore:
             tmp = self.path.with_suffix(".tmp")
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, ensure_ascii=False, indent=1)
-            os.replace(tmp, self.path)
+            for attempt in range(6):
+                try:
+                    os.replace(tmp, self.path)
+                    return
+                except PermissionError:  # virüs tarayıcısı ya da dizinleyici dosyayı tutuyor olabilir
+                    if attempt == 5:
+                        raise
+                    time.sleep(0.1 * (attempt + 1))
 
 
 class Settings(JsonStore):
@@ -132,6 +144,12 @@ class Settings(JsonStore):
             d["concurrency"] = max(1, min(6, int(d.get("concurrency", 2))))
         except (TypeError, ValueError):
             d["concurrency"] = 2
+        try:
+            d["lan_port"] = max(1024, min(65535, int(d.get("lan_port", 8787))))
+        except (TypeError, ValueError):
+            d["lan_port"] = 8787
+        if not isinstance(d.get("lan_key"), str):
+            d["lan_key"] = ""
         for k, v in DEFAULTS.items():
             if isinstance(v, bool):
                 d[k] = bool(d.get(k, v))

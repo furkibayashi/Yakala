@@ -536,6 +536,25 @@ select.compact { height: 34px; min-width: 0; font-size: 13px; }
   .sub-pending { padding: 0 12px 12px; }
 }
 
+/* ------------------------------------------------------------- telefon */
+.rail-dot { position: absolute; top: 8px; right: 18px; width: 9px; height: 9px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 3px var(--rail); }
+.phone-card { display: flex; flex-direction: column; gap: 18px; }
+.phone-toggle { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.phone-toggle b { display: block; font-family: "Bricolage Grotesque", sans-serif; font-size: 19px; }
+.phone-toggle span { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+.switch.big { transform: scale(1.2); transform-origin: right center; }
+.phone-body { display: grid; grid-template-columns: 236px 1fr; gap: 28px; align-items: center; padding-top: 18px; border-top: 1px solid var(--line-soft); }
+.qr-wrap { background: #fff; border-radius: 20px; padding: 12px; width: 236px; height: 236px; }
+.qr-wrap img { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 16px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; column-gap: 12px; }
+.steps li::before { content: counter(s); grid-row: span 2; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-tint); color: var(--accent); font-weight: 800; display: grid; place-items: center; }
+.steps b { font-size: 15px; }
+.steps span { color: var(--muted); font-size: 13.5px; }
+.phone-addr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.phone-addr code { font-family: "Cascadia Mono", Consolas, monospace; color: var(--text); background: var(--sunken); padding: 4px 8px; border-radius: 8px; }
+@media (max-width: 760px) { .phone-body { grid-template-columns: 1fr; justify-items: center; } }
+
 /* ------------------------------------------------------------- kaydırma çubuğu */
 ::-webkit-scrollbar { width: 12px; height: 12px; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; border: 3px solid transparent; background-clip: padding-box; }

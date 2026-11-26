@@ -46,9 +46,57 @@ def _find_browser() -> str | None:
     return shutil.which("msedge") or shutil.which("chrome")
 
 
+def _setup_logging():
+    """Hataları %APPDATA%\\Yakala\\yakala.log dosyasına yaz (pencereli uygulamada konsol yok)."""
+    import faulthandler
+    import logging
+    import threading
+    from logging.handlers import RotatingFileHandler
+
+    from . import config
+
+    path = config.app_dir() / "yakala.log"
+    handler = RotatingFileHandler(path, maxBytes=1_000_000, backupCount=2, encoding="utf-8")
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    root = logging.getLogger("yakala")
+    root.setLevel(logging.INFO)
+    root.addHandler(handler)
+    root.info("Yakala %s başladı", config.APP_VERSION)
+    try:
+        faulthandler.enable(open(config.app_dir() / "yakala-crash.log", "a", encoding="utf-8"))  # noqa: SIM115
+    except OSError:
+        pass
+    sys.excepthook = lambda t, v, tb: root.critical("Yakalanmamış hata", exc_info=(t, v, tb))
+    threading.excepthook = lambda a: root.error("İş parçacığında hata (%s)", a.thread and a.thread.name,
+                                                exc_info=(a.exc_type, a.exc_value, a.exc_traceback))
+
+
+def _single_instance() -> bool:
+    """Yakala zaten açıksa onun penceresini öne getir ve False döndür."""
+    if os.name != "nt":
+        return True
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    handle = kernel32.CreateMutexW(None, False, "Local\\YakalaTekOrnek")
+    globals()["_mutex"] = handle  # süreç boyunca açık kalsın
+    if kernel32.GetLastError() != 183:  # ERROR_ALREADY_EXISTS
+        return True
+    user32 = ctypes.windll.user32
+    hwnd = user32.FindWindowW(None, "Yakala")
+    if hwnd:
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+        user32.SetForegroundWindow(hwnd)
+    return False
+
+
 def run_app():
     from . import config, server
 
+    _setup_logging()
+    if "--serve" not in sys.argv and not _single_instance():
+        return
     app = server.App()
     port = 0
     if "--port" in sys.argv:
