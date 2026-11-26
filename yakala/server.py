@@ -10,7 +10,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import config, platforms, tools
+from . import config, platforms, tools, updater
 from .engine import AnalyzeError, Engine
 
 TOKEN = secrets.token_urlsafe(24)
@@ -22,6 +22,8 @@ class App:
         self.history = config.History()
         self.thumbs = tools.ThumbCache()
         self.engine = Engine(self.settings, self.history, self.thumbs)
+        if self.settings.get("auto_update"):
+            updater.maybe_auto(tools.helper_cmd, tools.run_hidden)
         self.web = config.resource_dir() / "web"
         self.window = None  # pywebview penceresi (varsa)
 
@@ -121,6 +123,7 @@ class App:
             "ffmpeg": ff,
             "deno": bool(tools.deno_path()),
             "app_dir": str(config.app_dir()),
+            "engines_custom": bool(updater.active_dir()) and str(updater.active_dir()) in yv.__file__,
         }
 
 

@@ -98,6 +98,17 @@ def run_app():
 
 def main():
     args = sys.argv[1:]
+    if args and args[0] == "--engine-test":
+        from . import updater
+
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        sys.exit(updater.engine_test(args[1]))
+    from . import updater
+
+    updater.activate()
     if args and args[0] == "--gallery-dl":
         import gallery_dl
 

@@ -32,6 +32,24 @@ Bunların dışında yt-dlp'nin desteklediği yüzlerce site de "Diğer site" ol
 - **Sürükle bırak:** tarayıcıdan bir bağlantıyı pencereye sürükle.
 - **Koyu / açık tema**, platformlara göre klasörleme, dosya adı şablonları, hız sınırı, proxy.
 
+### 1.1 ile gelenler
+
+- **Kendini güncelleyen motorlar:** yt-dlp ve gallery-dl günde bir kez denetlenir, yenisi arka planda
+  indirilip doğrulanır ve bir sonraki açılışta devreye girer. Hazır exe'de de çalışır; uygulamayı yeniden
+  indirmen gerekmez.
+- **Klip kesme:** videonun yalnızca istediğin aralığını indir; bölüm listesinden tek tıkla seç.
+  "Tam kesim" seçeneği saniyesi saniyesine keser.
+- **SponsorBlock:** YouTube videolarındaki sponsor, tanıtım ve "abone ol" kısımlarını çıkarır.
+- **Bölümlere ayırma:** bölümlü videoları (albüm, ders, podcast) her bölüm ayrı dosya olacak şekilde kaydeder.
+- **Ses dili seçimi:** dublajlı YouTube videolarında istediğin dili seç (orijinal varsayılan gelir).
+- **Paylaşım için küçült:** Discord ve WhatsApp için 10 / 25 / 50 MB sınırına sığan en iyi kaliteyi seçer.
+- **Hızlı mod:** "Yapıştırınca hemen video/ses indir" ile seçim ekranı açılmadan indirme başlar.
+- **"Bunu daha önce indirdin" uyarısı:** aynı bağlantıyı tekrar açtığında dosyanı gösterir.
+- **Açıklamayı kaydet:** gönderi açıklaması, hashtag'ler, hesap ve bağlantı dosyanın yanına .txt olarak yazılır.
+
+Bu sürümün özellikleri benzer uygulamaların (4K Video Downloader, Parabolic, Seal, cobalt, Stacher…)
+incelenmesiyle seçildi. Ayrıntılar ve sıradaki fikirler: [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md)
+
 ## Ekran görüntüleri
 
 | İndirme kuyruğu | Toplu indirme (açık tema) |
@@ -89,7 +107,7 @@ uyarıları için giriş yapmış olman gerekir. **Ayarlar → Hesap çerezleri*
 
 Platformlar sık sık değişiklik yapar.
 
-- **Hazır uygulamada:** Releases sayfasından son sürümü indir; motorlar her sürümde güncellenir.
+- **Hazır uygulamada:** motorlar kendiliğinden güncellenir. Hemen denemek için **Ayarlar → Sistem → Güncelle** de ve uygulamayı yeniden başlat.
 - **Kaynak koddan çalıştırıyorsan:** **Ayarlar → Sistem → Güncelle** ile indirme motorlarını
   (yt-dlp, gallery-dl) güncelle ve uygulamayı yeniden başlat.
 

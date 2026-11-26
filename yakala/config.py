@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 APP_NAME = "Yakala"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 
 def app_dir() -> Path:
@@ -68,6 +68,9 @@ DEFAULTS: dict = {
     "sound": True,
     "rate_limit": "",
     "proxy": "",
+    "auto_update": True,
+    "quick_mode": "off",
+    "save_caption": False,
 }
 
 FILENAME_TEMPLATES = {
@@ -86,6 +89,7 @@ CHOICES = {
     "cookies_mode": {"none", "browser", "file"},
     "cookies_browser": {"firefox", "chrome", "edge", "brave", "opera", "vivaldi", "chromium"},
     "theme": {"dark", "light"},
+    "quick_mode": {"off", "video", "audio"},
 }
 
 
@@ -162,6 +166,14 @@ class History(JsonStore):
                 _remove_thumb(old)
             del self.data[self.LIMIT:]
             self.save()
+
+    def find(self, url: str) -> dict | None:
+        """Aynı bağlantının dosyası hâlâ duran en son indirmesi."""
+        with self.lock:
+            for e in self.data:
+                if e.get("url") == url and any(os.path.exists(f) for f in e.get("files") or []):
+                    return copy.deepcopy(e)
+        return None
 
     def items(self) -> list:
         with self.lock:

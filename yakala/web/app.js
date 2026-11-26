@@ -272,6 +272,15 @@ async function analyze() {
   }
   urls.forEach(u => usedUrls.add(u));
   $('#clipHint').hidden = true;
+  if (settings.quick_mode && settings.quick_mode !== 'off') {
+    try {
+      const jobs = await api('batch', { text: urls.join('\n'), mode: settings.quick_mode });
+      toast(jobs.length > 1 ? `${jobs.length} indirme kuyruğa eklendi.` : 'Kuyruğa eklendi.', 'ok');
+      resetCatcher();
+      poll(true);
+    } catch (e) { toast(e.message, 'err'); }
+    return;
+  }
   if (urls.length > 1) { renderMulti(urls); return; }
   const seq = ++analyzeSeq;
   const url = urls[0];
@@ -389,8 +398,32 @@ function defaultQuality(qualities) {
   return fit ? fit.res : qualities[qualities.length - 1].res;
 }
 
+const langName = (() => {
+  let dn = null;
+  try { dn = new Intl.DisplayNames(['tr'], { type: 'language' }); } catch { /* eski tarayıcı */ }
+  return code => {
+    try {
+      const n = dn && dn.of(code);
+      return n ? n[0].toLocaleUpperCase('tr') + n.slice(1) : code;
+    } catch { return code; }
+  };
+})();
+function parseTime(t) {
+  t = String(t || '').trim().replace(',', '.');
+  if (!t) return null;
+  if (!/^\d+(:\d{1,2}){0,2}(\.\d+)?$/.test(t)) return NaN;
+  return t.split(':').reduce((a, x) => a * 60 + parseFloat(x), 0);
+}
+function dateShort(ts) { return new Date(ts * 1000).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long' }); }
+
 function baseSel(r) {
+  const orig = (r.audio_langs || []).find(l => l.original);
   return {
+    audio_lang: orig ? orig.code : null,
+    size_limit: null,
+    tools_open: false,
+    clip: false, clip_start: '', clip_end: '', exact_cut: false,
+    sponsorblock: false, split_chapters: false,
     mode: r.type === 'video' && !r.has_video ? 'audio' : 'video',
     quality: r.type === 'video' ? defaultQuality(r.qualities || []) : settings.video_quality,
     container: settings.video_container,
@@ -418,6 +451,13 @@ function videoCard(r, rerender) {
   const extras = [r.views != null ? count(r.views) + ' izlenme' : null, r.likes != null ? count(r.likes) + ' beğeni' : null, r.date || null];
   const { media, info } = head(r, extras);
   const opts = h('div', { class: 'opts' });
+  if (r.previous) {
+    const p = r.previous;
+    opts.append(h('div', { class: 'prev-note' }, icon('i-check'),
+      h('span', {}, 'Bunu ', h('b', { text: dateShort(p.date) }), ' tarihinde indirdin', p.label ? ` (${p.label}).` : '.'),
+      p.file ? h('button', { class: 'link-btn', onclick: () => api('open', { path: p.file }), text: 'Aç' }) : null,
+      p.file ? h('button', { class: 'link-btn', onclick: () => api('reveal', { path: p.file }), text: 'Klasörde göster' }) : null));
+  }
   if (r.has_video) {
     opts.append(modeSwitch([['video', 'Video', 'i-film'], ['audio', 'Sadece ses', 'i-music']], sel.mode, v => { sel.mode = v; rerender(); }));
   }
@@ -425,16 +465,22 @@ function videoCard(r, rerender) {
   if (sel.mode === 'video') {
     const qs = r.qualities || [];
     if (qs.length) {
-      const grid = h('div', { class: 'qgrid' });
+      const grid = h('div', { class: 'qgrid' + (sel.size_limit ? ' dim' : '') });
       for (const q of qs) {
-        const on = String(q.res) === String(sel.quality);
+        const on = String(q.res) === String(sel.quality) && !sel.size_limit;
         if (on) estimate = q.size;
-        grid.append(h('button', { class: 'q' + (on ? ' on' : ''), onclick: () => { sel.quality = q.res; rerender(); } },
+        grid.append(h('button', { class: 'q' + (on ? ' on' : ''), onclick: () => { sel.quality = q.res; sel.size_limit = null; rerender(); } },
           q.res >= 2160 ? h('i', { class: 'tag4k', text: q.res >= 4320 ? '8K' : '4K' }) : null,
           h('b', {}, `${q.res}p`, q.fps >= 50 ? h('sup', { text: q.fps }) : null),
           h('span', { text: q.size ? '≈ ' + bytes(q.size) : 'boyut ?' })));
       }
       opts.append(field('Kalite', grid));
+    }
+    const fits = r.size_fits || {};
+    if (Object.keys(fits).length) {
+      const choices = [['', 'Kapalı'], ...Object.entries(fits).map(([mb, f]) => [mb, `${mb} MB (${f.res}p)`])];
+      opts.append(field('Paylaşım için küçült (Discord, WhatsApp)', pills(choices, sel.size_limit || '', v => { sel.size_limit = v || null; rerender(); })));
+      if (sel.size_limit && fits[sel.size_limit]) estimate = fits[sel.size_limit].size;
     }
     opts.append(h('div', { class: 'row-opts' },
       field('Biçim', pills([['mp4', 'MP4'], ['mkv', 'MKV']], sel.container, v => { sel.container = v; rerender(); })),
@@ -445,12 +491,71 @@ function videoCard(r, rerender) {
     opts.append(audioOptions(rerender));
     estimate = audioEstimate(r.duration, r.audio_size);
   }
+  if ((r.audio_langs || []).length) {
+    const sel_ = h('select', { class: 'lang-select', onchange: e => { sel.audio_lang = e.target.value; } });
+    for (const l of r.audio_langs) {
+      const o = h('option', { value: l.code, text: langName(l.code) + (l.original ? ' (orijinal)' : '') });
+      if (l.code === sel.audio_lang) o.selected = true;
+      sel_.append(o);
+    }
+    opts.append(field(`Ses dili (${r.audio_langs.length} seçenek)`, sel_));
+  }
+  opts.append(editTools(r, rerender));
+  if (sel.clip && r.duration) {
+    const a = parseTime(sel.clip_start) || 0, b = parseTime(sel.clip_end);
+    const len = Math.max(0, (isNaN(b) || b == null ? r.duration : Math.min(b, r.duration)) - a);
+    if (len > 0) estimate = estimate * len / r.duration;
+  }
   const note = estimate ? h('span', { class: 'dl-note' }, 'Tahmini boyut ', h('b', { text: '≈ ' + bytes(estimate) })) :
     h('span', { class: 'dl-note', text: r.is_live ? 'Canlı yayın, kayıt bitene kadar sürer.' : '' });
   opts.append(h('div', { class: 'dl-row' }, note,
     h('button', { class: 'dl-btn', onclick: e => startDownload(r, e.currentTarget) }, icon('i-download'),
       sel.mode === 'audio' ? 'Sesi indir' : 'Videoyu indir')));
   return [h('div', { class: 'result' }, media, h('div', {}, info, opts))];
+}
+
+function editTools(r, rerender) {
+  const chapters = r.chapters || [];
+  const canSplit = chapters.length > 1;
+  const any = r.duration || r.sponsorblock || canSplit;
+  if (!any || r.is_live) return null;
+  const active = [sel.clip && 'klip', sel.sponsorblock && 'sponsorsuz', sel.split_chapters && 'bölümlere ayrılmış'].filter(Boolean);
+  const wrap = h('div', { class: 'edit-tools' + (sel.tools_open ? ' open' : '') });
+  wrap.append(h('button', { class: 'tools-toggle', 'aria-expanded': String(sel.tools_open), onclick: () => { sel.tools_open = !sel.tools_open; rerender(); } },
+    icon('i-settings'), 'Kes ve düzenle', active.length ? h('span', { class: 'kind', text: active.join(', ') }) : null,
+    h('span', { class: 'chev', text: sel.tools_open ? '−' : '+' })));
+  if (!sel.tools_open) return wrap;
+  const body = h('div', { class: 'tools-body' });
+  const check = (label, key, onToggle, disabled) => {
+    const cb = h('input', { type: 'checkbox', disabled: !!disabled });
+    cb.checked = !!sel[key];
+    cb.addEventListener('change', () => { sel[key] = cb.checked; if (onToggle) onToggle(); rerender(); });
+    return h('label', { class: 'check' + (disabled ? ' off' : '') }, cb, label);
+  };
+  if (r.duration) {
+    body.append(check('Yalnızca bir bölümünü indir', 'clip', () => { if (sel.clip) sel.split_chapters = false; }));
+    if (sel.clip) {
+      const start = h('input', { class: 'text-input time', type: 'text', placeholder: '0:00', value: sel.clip_start, 'aria-label': 'Başlangıç',
+        oninput: e => { sel.clip_start = e.target.value; } });
+      const end = h('input', { class: 'text-input time', type: 'text', placeholder: dur(r.duration), value: sel.clip_end, 'aria-label': 'Bitiş',
+        oninput: e => { sel.clip_end = e.target.value; } });
+      const row = h('div', { class: 'time-row' }, h('span', { text: 'Başlangıç' }), start, h('span', { text: 'Bitiş' }), end);
+      if (chapters.length) {
+        const cs = h('select', { class: 'lang-select', onchange: e => {
+          const c = chapters[+e.target.value];
+          if (c) { sel.clip_start = dur(c.start); sel.clip_end = dur(c.end); rerender(); }
+        } }, h('option', { value: '', text: 'Bölümden seç…' }),
+          chapters.map((c, i) => h('option', { value: i, text: `${dur(c.start)}  ${c.title}` })));
+        row.append(cs);
+      }
+      body.append(row);
+      if (sel.mode === 'video') body.append(check('Tam kesim (saniyesi saniyesine, daha yavaş)', 'exact_cut'));
+    }
+  }
+  if (r.sponsorblock) body.append(check('Sponsor, tanıtım ve "abone ol" kısımlarını çıkar (SponsorBlock)', 'sponsorblock'));
+  if (canSplit) body.append(check(`Bölümlere ayır: ${chapters.length} bölüm ayrı dosya olarak da kaydedilir`, 'split_chapters', null, sel.clip));
+  wrap.append(body);
+  return wrap;
 }
 
 function playlistCard(r, rerender) {
@@ -562,7 +667,19 @@ async function startDownload(r, btn) {
     quality: String(sel.quality), container: sel.container,
     audio_format: sel.audio_format, audio_quality: sel.audio_quality,
     subtitles: sel.subtitles,
+    audio_lang: sel.audio_lang || null,
+    sponsorblock: !!sel.sponsorblock,
+    split_chapters: !!sel.split_chapters && !sel.clip,
   };
+  if (r.type === 'video' && sel.mode === 'video' && sel.size_limit) body.size_limit = sel.size_limit;
+  if (r.type === 'video' && sel.clip) {
+    const a = parseTime(sel.clip_start), b = parseTime(sel.clip_end);
+    if (Number.isNaN(a) || Number.isNaN(b)) { toast('Zamanı 1:30 ya da 90 biçiminde yaz.', 'err'); btn.disabled = false; return; }
+    if (b != null && b <= (a || 0)) { toast('Bitiş zamanı başlangıçtan sonra olmalı.', 'err'); btn.disabled = false; return; }
+    body.clip_start = a || 0;
+    if (b != null && (!r.duration || b < r.duration)) body.clip_end = b;
+    body.exact_cut = !!sel.exact_cut;
+  }
   if (r.type === 'playlist') body.entries = sel.entries.size === r.entries.length ? [] : [...sel.entries];
   if (r.type === 'gallery') body.items = sel.items.size === r.items.length ? [] : [...sel.items];
   try {
@@ -604,7 +721,8 @@ function jobActions(j) {
   const act = a => () => api('job', { id: j.id, action: a }).then(() => poll(true)).catch(e => toast(e.message, 'err'));
   const file = j.files && j.files[0];
   switch (j.status) {
-    case 'running': return [b('i-pause', 'Duraklat', act('pause')), b('i-x', 'İptal et', act('cancel'), 'danger')];
+    case 'running': return j.pausable === false ? [b('i-x', 'İptal et', act('cancel'), 'danger')] :
+      [b('i-pause', 'Duraklat', act('pause')), b('i-x', 'İptal et', act('cancel'), 'danger')];
     case 'queued': return [b('i-pause', 'Beklet', act('pause')), b('i-x', 'İptal et', act('cancel'), 'danger')];
     case 'paused': return [b('i-play', 'Devam et', act('resume')), b('i-x', 'İptal et', act('cancel'), 'danger')];
     case 'done': return [
@@ -856,6 +974,7 @@ function renderSystem() {
   $('#sysFfmpeg').textContent = text;
   $('#ffInstall').hidden = ff.source === 'full' || (ff.source === 'system' && ff.ffprobe);
   $('#sysEngines').textContent = `yt-dlp ${system.ytdlp}, gallery-dl ${system.gallerydl}` +
+    (system.engines_custom ? ' (güncellenmiş)' : '') +
     (system.deno ? '. YouTube imza çözücü hazır.' : '. Deno bulunamadı; bazı YouTube kaliteleri görünmeyebilir.');
   $('#appFoot').textContent = `Yakala ${window.APP_VERSION || ''}. Ayarlar ve geçmiş: ${system.app_dir}`;
 }
@@ -878,7 +997,12 @@ function renderSysProgress() {
   const up = $('#engUpdate');
   up.disabled = !!updState.running;
   $('#sysUpdate').textContent = updState.message || '';
+  if (updState.pending && !updToastShown) {
+    updToastShown = true;
+    toast('İndirme motorları güncellendi. Etkinleşmesi için uygulamayı yeniden başlat.', 'ok');
+  }
 }
+let updToastShown = false;
 
 /* ================================================================== pano önerisi */
 let clipSeen = '';

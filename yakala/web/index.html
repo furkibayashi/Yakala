@@ -94,6 +94,15 @@
         </button>
       </div>
 
+      <div class="quick">
+        <span id="quickLabel">Yapıştırınca</span>
+        <div class="seg small" data-s="quick_mode" role="group" aria-labelledby="quickLabel">
+          <button data-v="off">Seçenekleri göster</button>
+          <button data-v="video">Hemen video indir</button>
+          <button data-v="audio">Hemen ses indir</button>
+        </div>
+      </div>
+
       <div class="clip-hint" id="clipHint" hidden>
         <svg class="clip-hint-icon"><use href="#p-other"/></svg>
         <span id="clipHintText"></span>
@@ -165,6 +174,10 @@
           <div class="set-row">
             <div class="set-text"><b>Platformlara göre ayır</b><span>YouTube, X, TikTok ve Instagram için ayrı alt klasörler oluşturur.</span></div>
             <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="platform_folders"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b>Açıklamayı da kaydet</b><span>Gönderi açıklaması, hashtag'ler, hesap ve bağlantı dosyanın yanına .txt olarak yazılır.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="save_caption"><i></i></label></div>
           </div>
           <div class="set-row">
             <div class="set-text"><b>Dosya adı</b><span>Aynı adlı dosyaların üst üste binmemesi için kimlik eklemek önerilir.</span></div>
@@ -297,7 +310,11 @@
             <div class="set-text"><b>İndirme motorları</b><span id="sysEngines"></span><span id="sysUpdate" class="note"></span></div>
             <div class="set-ctrl"><button class="soft-btn" id="engUpdate"><svg><use href="#i-retry"/></svg>Güncelle</button></div>
           </div>
-          <p class="group-note">Platformlar sık sık değişiklik yapar. Bir şey indirilemezse önce motorları güncelle.</p>
+          <div class="set-row">
+            <div class="set-text"><b>Motorları otomatik güncelle</b><span>Günde bir kez yeni yt-dlp ve gallery-dl sürümü olup olmadığına bakar ve arka planda indirir.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="auto_update"><i></i></label></div>
+          </div>
+          <p class="group-note">Platformlar sık sık değişiklik yapar. Bir şey indirilemezse önce motorları güncelle; yeni sürüm uygulama yeniden başlatılınca devreye girer.</p>
         </section>
         <p class="foot" id="appFoot"></p>
       </div>

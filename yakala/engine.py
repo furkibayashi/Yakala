@@ -17,7 +17,7 @@ from pathlib import Path
 
 import yt_dlp
 
-from . import config, platforms, tools
+from . import config, platforms, tools, updater
 
 STD_RES = [4320, 2160, 1440, 1080, 720, 480, 360, 240, 144]
 VIDEO_EXTS = {"mp4", "mov", "webm", "m4v", "mkv", "m3u8", "gif"}
@@ -155,6 +155,61 @@ def _dig(d: dict, *paths):
     return None
 
 
+SIZE_LIMITS = (10, 25, 50)
+
+
+def fit_format(formats: list[dict], duration, limit_mb: int, lang: str | None = None,
+               prefer_h264: bool = True) -> dict | None:
+    """Verilen boyuta sığan en yüksek çözünürlüklü görüntü+ses birleşimini seçer."""
+    limit = limit_mb * 1024 * 1024 * 0.96
+    vids = [f for f in formats if f.get("vcodec") != "none" and (f.get("width") or f.get("height"))]
+    auds = [f for f in formats if f.get("vcodec") == "none" and f.get("acodec") not in (None, "none")]
+    if lang:
+        auds = [a for a in auds if a.get("language") == lang] or auds
+    best = None
+    for v in vids:
+        vs = _fsize(v, duration)
+        if not vs:
+            continue
+        combos = []
+        if v.get("acodec") != "none":
+            combos.append((v["format_id"], vs))
+        else:
+            for a in auds:
+                asz = _fsize(a, duration)
+                if asz:
+                    combos.append((f"{v['format_id']}+{a['format_id']}", vs + asz))
+        res = min(x for x in (v.get("width"), v.get("height")) if x)
+        h264 = str(v.get("vcodec") or "").startswith(("avc", "h264"))
+        for spec, size in combos:
+            if size <= limit:
+                key = (res, h264 if prefer_h264 else False, size)
+                if best is None or key > best[0]:
+                    best = (key, spec, size, res)
+    if not best:
+        return None
+    return {"spec": best[1], "size": int(best[2]), "res": _bucket(best[3])}
+
+
+def _caption_text(title: str, owner: str, url: str, date: str, body: str, tags=None) -> str:
+    lines = [f"Başlık: {title}" if title else "", f"Hesap: {owner}" if owner else "",
+             f"Bağlantı: {url}" if url else "", f"Tarih: {date}" if date else ""]
+    out = "\n".join(x for x in lines if x)
+    if body:
+        out += "\n\n" + body.strip()
+    if tags:
+        out += "\n\n" + " ".join("#" + str(t).lstrip("#") for t in tags if t)
+    return out + "\n"
+
+
+def write_caption(path: str, text: str):
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+    except OSError:
+        pass
+
+
 # --------------------------------------------------------------------------- #
 # Analiz
 # --------------------------------------------------------------------------- #
@@ -219,6 +274,26 @@ def _from_ytdl(info: dict, desc: dict, thumbs: tools.ThumbCache) -> dict:
         b["size"] = max(b["size"], size)
         b["fps"] = max(b["fps"], int(f.get("fps") or 0))
     qualities = sorted(buckets.values(), key=lambda b: -b["res"])
+    langs: dict[str, dict] = {}
+    for f in audio:
+        lang = f.get("language")
+        if not lang or not re.fullmatch(r"[\w-]{2,12}", str(lang)):
+            continue
+        ent = langs.setdefault(lang, {"code": lang, "size": 0, "original": False})
+        ent["size"] = max(ent["size"], _fsize(f, duration))
+        if "original" in str(f.get("format_note") or "").lower() or (f.get("language_preference") or 0) >= 10:
+            ent["original"] = True
+    audio_langs = sorted(langs.values(), key=lambda x: (not x["original"], x["code"])) if len(langs) > 1 else []
+    slim = [{k: f.get(k) for k in ("format_id", "vcodec", "acodec", "width", "height", "filesize",
+                                    "filesize_approx", "tbr", "language", "ext")} for f in fmts if f.get("format_id")]
+    fits = {}
+    if duration and qualities:
+        for mb in SIZE_LIMITS:
+            got = fit_format(slim, duration, mb)
+            if got:
+                fits[str(mb)] = {"res": got["res"], "size": got["size"]}
+    chapters = [{"title": c.get("title") or f"Bölüm {i}", "start": c.get("start_time"), "end": c.get("end_time")}
+                for i, c in enumerate(info.get("chapters") or [], 1) if c.get("start_time") is not None]
     has_video = bool(qualities) or any(f.get("vcodec") not in ("none",) for f in fmts if f.get("vcodec"))
     if not audio_size and qualities:
         audio_size = (duration or 0) * 160_000 / 8
@@ -235,6 +310,11 @@ def _from_ytdl(info: dict, desc: dict, thumbs: tools.ThumbCache) -> dict:
         "audio_size": audio_size,
         "subtitles": sorted((info.get("subtitles") or {}).keys())[:40],
         "is_live": bool(info.get("is_live")),
+        "chapters": chapters[:200],
+        "audio_langs": audio_langs,
+        "size_fits": fits,
+        "sponsorblock": desc.get("platform") == "youtube",
+        "_formats": slim,
     }
 
 
@@ -302,7 +382,10 @@ def _gallery_extract(url: str, s: dict, thumbs: tools.ThumbCache) -> tuple[dict,
             "height": kw.get("height"),
             "thumb": thumbs.register(thumb_src if isinstance(thumb_src, str) else None),
         })
-        internal.append({"url": murl, "stem": stem, "ext": ext, "kind": "video" if is_video else "image"})
+        caption = _dig(kw, "description", "content", "desc", "caption", "title") or ""
+        internal.append({"url": murl, "stem": stem, "ext": ext, "kind": "video" if is_video else "image",
+                         "owner": str(owner), "post": str(post), "caption": str(caption),
+                         "date": str(kw.get("date") or ""), "tags": kw.get("tags") or kw.get("hashtags") or []})
 
     first = media[0][1]
     title = _dig(first, "description", "content", "desc", "title", "caption") or _dig(meta, "description", "content", "title") or ""
@@ -375,6 +458,20 @@ def analyze(url: str, s: dict, thumbs: tools.ThumbCache) -> tuple[dict, list[dic
 # --------------------------------------------------------------------------- #
 # İşler
 # --------------------------------------------------------------------------- #
+def _ts(sec) -> str:
+    sec = int(sec or 0)
+    h, m, x = sec // 3600, sec % 3600 // 60, sec % 60
+    return f"{h}:{m:02d}:{x:02d}" if h else f"{m}:{x:02d}"
+
+
+def _num(v):
+    try:
+        f = float(v)
+        return f if f >= 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
 class Job:
     def __init__(self, url: str, mode: str, opts: dict, meta: dict | None = None):
         meta = meta or {}
@@ -424,8 +521,19 @@ class Job:
         else:
             q = o.get("quality", "best")
             self.label = ("En iyi kalite" if q == "best" else f"{q}p") + f" {o.get('container', 'mp4').upper()}"
+            if o.get("size_limit"):
+                self.label = o.get("container", "mp4").upper()
         if o.get("entries"):
             self.label += f", {len(o['entries'])} video"
+        if o.get("size_limit"):
+            self.label += f", en fazla {o['size_limit']} MB"
+        if o.get("clip_start") is not None or o.get("clip_end") is not None:
+            end = _ts(o["clip_end"]) if o.get("clip_end") is not None else "son"
+            self.label += f", klip {_ts(o.get('clip_start') or 0)}–{end}"
+        if o.get("sponsorblock"):
+            self.label += ", sponsorsuz"
+        if o.get("split_chapters"):
+            self.label += ", bölümlere ayrılmış"
 
     def check(self):
         if self.cancel_flag or self.pause_flag:
@@ -440,6 +548,7 @@ class Job:
             "item_index": self.item_index, "item_count": self.item_count, "files": self.files,
             "error": self.error, "warning": self.warning, "label": self.label,
             "created": self.created, "finished": self.finished, "size": self.size,
+            "pausable": self.opts.get("clip_start") is None and self.opts.get("clip_end") is None,
         }
 
 
@@ -451,7 +560,6 @@ class Engine:
         self.jobs: "OrderedDict[str, Job]" = OrderedDict()
         self.analyses: "OrderedDict[str, tuple[dict, list[dict]]]" = OrderedDict()
         self.lock = threading.RLock()
-        self.update_state = {"running": False, "message": "", "ok": None}
 
     # ---- analiz ---------------------------------------------------------- #
     def analyze(self, url: str) -> dict:
@@ -461,7 +569,12 @@ class Engine:
             self.analyses[aid] = (res, internal)
             while len(self.analyses) > 60:
                 self.analyses.popitem(last=False)
-        return {**res, "aid": aid}
+        public = {k: v for k, v in res.items() if not k.startswith("_")}
+        prev = self.history.find(res.get("url"))
+        if prev:
+            public["previous"] = {"date": prev.get("date"), "label": prev.get("label"),
+                                  "file": next((f for f in prev.get("files") or [] if os.path.exists(f)), "")}
+        return {**public, "aid": aid}
 
     # ---- kuyruk ---------------------------------------------------------- #
     def submit(self, req: dict) -> dict:
@@ -475,7 +588,18 @@ class Engine:
             "subtitles": bool(req.get("subtitles", s["subtitles"])),
             "entries": [int(i) for i in (req.get("entries") or []) if str(i).isdigit()],
             "items": [int(i) for i in (req.get("items") or []) if str(i).isdigit()],
+            "clip_start": _num(req.get("clip_start")),
+            "clip_end": _num(req.get("clip_end")),
+            "exact_cut": bool(req.get("exact_cut")),
+            "sponsorblock": bool(req.get("sponsorblock")),
+            "split_chapters": bool(req.get("split_chapters")),
+            "audio_lang": req.get("audio_lang") if re.fullmatch(r"[\w-]{2,12}", str(req.get("audio_lang") or "")) else None,
+            "size_limit": int(req["size_limit"]) if str(req.get("size_limit")) in {str(x) for x in SIZE_LIMITS} else None,
         }
+        if opts["clip_start"] == 0 and opts["clip_end"] is None:
+            opts["clip_start"] = None
+        if opts["clip_start"] is not None and opts["clip_end"] is not None and opts["clip_end"] <= opts["clip_start"]:
+            raise ValueError("Klibin bitişi başlangıcından sonra olmalı.")
         if not re.fullmatch(r"best|\d{2,4}", opts["quality"]):
             opts["quality"] = "best"
         if opts["audio_quality"] not in config.CHOICES["audio_quality"]:
@@ -494,6 +618,12 @@ class Engine:
                 mode = "gallery"
             elif res["type"] == "playlist":
                 opts["_is_playlist"] = True
+            if opts["size_limit"] and mode == "video" and res.get("_formats"):
+                got = fit_format(res["_formats"], res.get("duration"), opts["size_limit"], opts["audio_lang"],
+                                 bool(s.get("compat_codecs")))
+                if not got:
+                    raise ValueError(f"Bu video {opts['size_limit']} MB sınırına sığmıyor.")
+                opts["format_spec"] = got["spec"]
         elif not url.startswith("http"):
             raise ValueError("Geçerli bir bağlantı gerekli.")
         else:
@@ -649,7 +779,8 @@ class Engine:
         mode = "video" if force_video else job.mode
         if mode == "audio":
             fmt = o["audio_format"]
-            a += ["-f", "ba/b", "-x", "--audio-format", fmt]
+            lang = o.get("audio_lang")
+            a += ["-f", f"ba[language={lang}]/ba/b" if lang else "ba/b", "-x", "--audio-format", fmt]
             q = o["audio_quality"]
             a += ["--audio-quality", "0" if q == "best" or fmt in ("wav", "flac") else f"{q}K"]
             if s.get("embed_thumbnail") and fmt != "wav":
@@ -660,11 +791,26 @@ class Engine:
             sort = "res" if q == "best" else f"res:{q}"
             if s.get("compat_codecs") and cont == "mp4":
                 sort += ",vcodec:h264,acodec:aac"
-            a += ["-f", "bv*+ba/b", "-S", sort, "--merge-output-format", cont, "--remux-video", cont]
+            lang = o.get("audio_lang")
+            vfmt = f"bv*+ba[language={lang}]/bv*+ba/b" if lang else "bv*+ba/b"
+            if o.get("format_spec") and not force_video:
+                vfmt = o["format_spec"]
+            a += ["-f", vfmt, "-S", sort, "--merge-output-format", cont, "--remux-video", cont]
             if s.get("embed_thumbnail"):
                 a += ["--embed-thumbnail", "--convert-thumbnails", "jpg"]
             if o.get("subtitles"):
-                a += ["--write-subs", "--sub-langs", s.get("sub_langs") or "tr,en", "--embed-subs"]
+                a += ["--write-subs", "--sub-langs", s.get("sub_langs") or "tr,en", "--embed-subs", "--sleep-subtitles", "1"]
+        if not force_video:
+            if o.get("clip_start") is not None or o.get("clip_end") is not None:
+                end = o.get("clip_end")
+                a += ["--download-sections", f"*{o.get('clip_start') or 0}-{end if end is not None else 'inf'}"]
+                if o.get("exact_cut") or mode == "audio":
+                    a += ["--force-keyframes-at-cuts"]
+            if o.get("sponsorblock"):
+                a += ["--sponsorblock-remove", "sponsor,selfpromo,interaction"]
+            if o.get("split_chapters"):
+                a += ["--split-chapters", "-o",
+                      "chapter:%(title).80B - bölümler/%(section_number)02d - %(section_title).80B.%(ext)s"]
         if s.get("embed_metadata"):
             a += ["--embed-metadata"]
         tmpl = template or config.FILENAME_TEMPLATES.get(s.get("filename"), config.FILENAME_TEMPLATES["title_id"])
@@ -683,11 +829,16 @@ class Engine:
         """frac: (başlangıç, genişlik) — galeri içindeki tek bir video için ilerleme dilimi."""
         log = _Logger()
         opts = _opts(self._ytdl_args(job, s, outdir, template, force_video))
+        # Klip indirmede yt-dlp ffmpeg konumunu bu bağlam değişkeninden okur (komut satırı onu kendisi ayarlar).
+        from yt_dlp.postprocessor.ffmpeg import FFmpegPostProcessor
+        FFmpegPostProcessor._ffmpeg_location.set(opts.get("ffmpeg_location"))
         state = {"sizes": None}
 
         def hook(d):
             job.check()
             info = d.get("info_dict") or {}
+            if info.get("id"):
+                job.last_info = info
             if d.get("status") == "downloading":
                 tmp = d.get("tmpfilename") or d.get("filename")
                 if tmp:
@@ -736,10 +887,22 @@ class Engine:
                 name = d.get("postprocessor") or ""
                 job.stage = PP_STAGES.get(name, PP_STAGES.get("FFmpeg" + name, "İşleniyor"))
                 job.speed = job.eta = None
+            elif d.get("status") == "finished" and "Thumbnail" in str(d.get("postprocessor")) \
+                    and not job.opts.get("_clip_started") and (job.opts.get("clip_start") is not None
+                                                                or job.opts.get("clip_end") is not None):
+                job.opts["_clip_started"] = True
+                job.stage = "Klip indirilip kesiliyor"
 
         def post_hook(filename):
             if filename and filename not in job.files:
                 job.files.append(filename)
+                info = getattr(job, "last_info", None) or {}
+                if s.get("save_caption") and info:
+                    d = info.get("upload_date") or ""
+                    write_caption(os.path.splitext(filename)[0] + ".txt", _caption_text(
+                        info.get("title") or "", info.get("uploader") or info.get("channel") or "",
+                        info.get("webpage_url") or url, f"{d[6:8]}.{d[4:6]}.{d[:4]}" if len(d) == 8 else "",
+                        info.get("description") or "", info.get("tags") or []))
             job.items_done += 1
             for p in list(job.parts):
                 if not os.path.exists(p):
@@ -761,6 +924,10 @@ class Engine:
         job.check()
         if len(job.files) == before:
             raise RuntimeError(log.errors[-1] if log.errors else "İndirilecek dosya bulunamadı.")
+        if job.opts.get("split_chapters") and not force_video:
+            for d in sorted(outdir.iterdir()):
+                if d.is_dir() and d.name.endswith(" - bölümler") and d.stat().st_mtime >= job.started - 2:
+                    job.files.extend(str(f) for f in sorted(d.iterdir()) if f.is_file() and str(f) not in job.files)
         if log.errors and job.opts.get("_is_playlist"):
             failed = len(log.errors)
             job.warning = f"{failed} öğe indirilemedi: {tools.friendly_error(log.errors[-1])}"
@@ -783,6 +950,12 @@ class Engine:
                 continue
             target = outdir / f"{it['stem']}.{it['ext']}"
             self._http_download(job, it["url"], target, i, n)
+            if s.get("save_caption") and it.get("caption"):
+                key = f"{it.get('owner')}_{it.get('post')}" if it.get("post") else it["stem"]
+                cap = outdir / f"{_sanitize(key, 120)}.txt"
+                if not cap.exists():
+                    write_caption(str(cap), _caption_text("", it.get("owner", ""), job.url, it.get("date", ""),
+                                                         it["caption"], it.get("tags")))
             job.items_done = i + 1
             job.progress = min(0.999, (i + 1) / n)
 
@@ -845,32 +1018,9 @@ class Engine:
         })
 
     # ---- motor güncellemesi --------------------------------------------- #
+    @property
+    def update_state(self) -> dict:
+        return updater.state
+
     def update_engines(self):
-        import sys
-        if self.update_state["running"]:
-            return
-        if getattr(sys, "frozen", False):
-            self.update_state.update(running=False, ok=False,
-                                     message="Paketlenmiş sürümde motor güncellemesi için uygulamanın yeni sürümünü derle.")
-            return
-        self.update_state.update(running=True, ok=None, message="Güncelleniyor…")
-
-        def work():
-            exe = sys.executable
-            if exe.lower().endswith("pythonw.exe"):
-                exe = exe[:-5] + ".exe"
-            try:
-                r = tools.run_hidden([exe, "-m", "pip", "install", "-U", "--disable-pip-version-check",
-                                      "yt-dlp[default,curl-cffi]", "yt-dlp-ejs", "gallery-dl"],
-                                     capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600)
-                if r.returncode == 0:
-                    self.update_state.update(ok=True, message="Motorlar güncellendi. Etkinleşmesi için uygulamayı yeniden başlat.")
-                else:
-                    tail = (r.stderr or r.stdout or "").strip().splitlines()[-1:]
-                    self.update_state.update(ok=False, message="Güncelleme başarısız: " + (tail[0] if tail else "bilinmeyen hata"))
-            except Exception as e:  # noqa: BLE001
-                self.update_state.update(ok=False, message=f"Güncelleme başarısız: {e}")
-            finally:
-                self.update_state["running"] = False
-
-        threading.Thread(target=work, daemon=True).start()
+        updater.run_update(tools.helper_cmd, tools.run_hidden, only_if_newer=True)
