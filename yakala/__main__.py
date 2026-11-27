@@ -114,6 +114,17 @@ def run_app():
         server.wait_forever()
         return
 
+    from . import appupdate
+
+    try:
+        _run_ui(app, srv, url)
+    finally:
+        appupdate.on_exit(app.settings)   # indirilmiş güncelleme varsa kapanırken kur
+
+
+def _run_ui(app, srv, url):
+    from . import config, server
+
     try:
         import webview  # type: ignore
 

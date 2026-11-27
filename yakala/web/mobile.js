@@ -55,6 +55,11 @@ async function load() {
   try {
     const j = await get('/api/items');
     items = j.data;
+    if (j.theme && j.theme !== 'system') {
+      document.documentElement.dataset.theme = j.theme;
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if (bg) document.querySelector('meta[name="theme-color"]').setAttribute('content', bg);
+    }
     $('#pcName').textContent = j.pc ? `${j.pc} bilgisayarı` : 'Bilgisayarın';
     $('#sendBox').hidden = !j.allow_send;
     render();

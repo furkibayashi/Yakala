@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
 <link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/themes.css">
 <link rel="icon" href="/static/icon.png">
 </head>
 <body>
@@ -49,6 +50,8 @@
   <symbol id="i-bell" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15ZM10 20.5a2.2 2.2 0 0 0 4 0"/></symbol>
   <symbol id="i-plus" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M12 5v14M5 12h14"/></symbol>
   <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" d="M10.5 18.2h3"/></symbol>
+  <symbol id="i-sparkle" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2.5l2.2 6.3 6.3 2.2-6.3 2.2L12 19.5l-2.2-6.3L3.5 11l6.3-2.2z"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1-1.6-1-2.8 0-1 .8-1.7 1.8-1.7h2a3.9 3.9 0 0 0 3.9-3.9c0-3.9-3.8-6.9-8.5-6.9Z"/><circle cx="7.8" cy="11" r="1.2" fill="currentColor"/><circle cx="10.5" cy="7.3" r="1.2" fill="currentColor"/><circle cx="15" cy="7.5" r="1.2" fill="currentColor"/></symbol>
   <symbol id="i-logo" viewBox="0 0 32 32"><path fill="currentColor" d="M16 3a13 13 0 1 0 13 13A13 13 0 0 0 16 3Zm0 4.2a1.8 1.8 0 0 1 1.8 1.8v8.4l2.7-2.7a1.8 1.8 0 0 1 2.5 2.5l-5.7 5.7a1.8 1.8 0 0 1-2.6 0L9 17.2a1.8 1.8 0 0 1 2.5-2.5l2.7 2.7V9A1.8 1.8 0 0 1 16 7.2Z"/></symbol>
 </svg>
 
@@ -73,12 +76,20 @@
       <svg><use href="#i-settings"/></svg><span>Ayarlar</span>
     </button>
     <div class="rail-spacer"></div>
-    <button class="rail-btn small" id="themeBtn" aria-label="Temayı değiştir">
-      <svg><use href="#i-moon"/></svg>
+    <button class="rail-btn small" id="themeBtn" aria-label="Sonraki tema" title="Sonraki tema">
+      <svg><use href="#i-palette"/></svg>
     </button>
   </nav>
 
   <main class="main">
+    <div class="update-banner" id="updateBanner" hidden>
+      <svg class="ub-icon"><use href="#i-sparkle"/></svg>
+      <div class="ub-text"><b id="ubTitle"></b><span id="ubSub"></span></div>
+      <button class="text-btn" id="ubNotes">Neler yeni?</button>
+      <button class="dl-btn small" id="ubAction"></button>
+      <button class="icon-btn tiny" id="ubClose" aria-label="Şimdilik gizle"><svg><use href="#i-x"/></svg></button>
+      <pre class="ub-notes" id="ubNotesBody" hidden></pre>
+    </div>
     <!-- ================= İNDİR ================= -->
     <section class="view" id="view-home">
       <header class="hero">
@@ -263,6 +274,11 @@
 
       <div class="settings">
         <section class="set-group">
+          <h3>Görünüm</h3>
+          <div class="themes" id="themeGrid" role="radiogroup" aria-label="Tema"></div>
+        </section>
+
+        <section class="set-group">
           <h3>Kayıt yeri</h3>
           <div class="set-row">
             <div class="set-text"><b>İndirme klasörü</b><span class="path" id="sDir"></span></div>
@@ -400,6 +416,18 @@
           <div class="set-row">
             <div class="set-text"><b>Proxy</b><span>Örnek: socks5://127.0.0.1:1080</span></div>
             <div class="set-ctrl"><input class="text-input" data-s="proxy" type="text" placeholder="Kullanılmıyor" spellcheck="false"></div>
+          </div>
+        </section>
+
+        <section class="set-group" id="appUpdateGroup">
+          <h3>Uygulama güncellemeleri</h3>
+          <div class="set-row">
+            <div class="set-text"><b>Otomatik güncelle</b><span>Yeni sürüm GitHub'da yayınlanınca arka planda indirilir; "Yeniden başlat ve güncelle" deyince ya da Yakala'yı kapattığında kurulur. Kapalıyken yalnızca haber verilir.</span></div>
+            <div class="set-ctrl"><label class="switch"><input type="checkbox" data-s="app_auto_update"><i></i></label></div>
+          </div>
+          <div class="set-row">
+            <div class="set-text"><b id="auVersion">Yakala</b><span id="auStatus">Denetlenmedi.</span></div>
+            <div class="set-ctrl"><button class="soft-btn" id="auCheck"><svg><use href="#i-retry"/></svg>Güncellemeleri denetle</button></div>
           </div>
         </section>
 

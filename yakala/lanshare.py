@@ -283,7 +283,7 @@ def _make_handler(share: LanShare):
             u = urlparse(self.path)
             if u.path.startswith("/m/"):
                 name = os.path.basename(u.path)
-                if name not in ("mobile.css", "mobile.js", "icon.png"):
+                if name not in ("mobile.css", "mobile.js", "icon.png", "themes.css"):
                     return self._send(404, b"", "text/plain")
                 f = share.web / name
                 ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
@@ -301,7 +301,8 @@ def _make_handler(share: LanShare):
             if u.path == "/api/items":
                 return self._json({"ok": True, "data": share.items(),
                                    "allow_send": bool(share.app.settings.get("lan_allow_send")),
-                                   "pc": socket.gethostname()})
+                                   "pc": socket.gethostname(),
+                                   "theme": share.app.settings.get("theme") or "dark"})
             if u.path == "/api/queue":
                 jobs = [{"title": j["title"], "status": j["status"], "progress": j["progress"], "stage": j["stage"],
                          "platform": j["platform"]} for j in share.app.engine.list()[:20]]

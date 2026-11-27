@@ -14,6 +14,7 @@ from . import config, platforms, tools, updater
 from .engine import AnalyzeError, Engine
 from .subscriptions import SubError, Subscriptions
 from .lanshare import LanShare
+from . import appupdate
 
 TOKEN = secrets.token_urlsafe(24)
 
@@ -28,6 +29,7 @@ class App:
         self.lan = LanShare(self)
         self.lan.apply()
         tools.set_proxy(self.settings.get("proxy") or "")
+        appupdate.start_background(self.settings)
         if self.settings.get("auto_update"):
             updater.maybe_auto(tools.helper_cmd, tools.run_hidden)
         self.web = config.resource_dir() / "web"
@@ -69,7 +71,9 @@ class App:
                     "sub_events": self.subs.take_events(),
                     "sub_new": self.subs.pending_count(),
                     "sub_checking": self.subs.any_checking(),
-                    "lan_on": bool(self.lan.srv)}
+                    "lan_on": bool(self.lan.srv),
+                    "app_update": {k: appupdate.state.get(k) for k in ("ready", "downloading", "progress", "error")} |
+                                  {"version": (appupdate.state.get("available") or {}).get("version")}}
         if name.startswith("subs"):
             try:
                 return self.subs_api(name, body)
@@ -103,6 +107,20 @@ class App:
             return out
         if name == "lan":
             return self.lan.status()
+        if name == "app_update":
+            return appupdate.public()
+        if name == "app_update_check":
+            appupdate.check()
+            return appupdate.public()
+        if name == "app_update_download":
+            threading.Thread(target=appupdate.download, daemon=True).start()
+            time.sleep(0.2)
+            return appupdate.public()
+        if name == "app_update_install":
+            if not appupdate.install(restart=True):
+                raise UserError(appupdate.state.get("error") or "Güncelleme kurulamadı.")
+            self.quit()
+            return True
         if name == "lan_rotate":
             self.lan.rotate_key()
             return self.lan.status()
@@ -162,6 +180,23 @@ class App:
             s.dismiss(sid, ids)
             return True
         raise UserError("Bilinmeyen istek.")
+
+    def quit(self):
+        """Pencereyi kapat (güncelleme kurulumu için). Pencere yoksa süreci bitir."""
+        def later():
+            time.sleep(0.6)
+            try:
+                self.lan.stop()
+            except Exception:  # noqa: BLE001
+                pass
+            if self.window is not None:
+                try:
+                    self.window.destroy()
+                except Exception:  # noqa: BLE001
+                    pass
+                time.sleep(6)
+            os._exit(0)
+        threading.Thread(target=later, daemon=True).start()
 
     def _resolve_path(self, body: dict) -> str:
         path = body.get("path") or ""

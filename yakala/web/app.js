@@ -201,12 +201,43 @@ function show(view) {
 }
 $$('.rail-btn[data-view]').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
 
+const THEMES = [
+  ['system', 'Sistemle aynı', 'Windows açık/koyu ayarını izler'],
+  ['dark', 'Gece', 'Mor gece, kehribar'],
+  ['light', 'Gün', 'Lavanta kâğıt'],
+  ['ocean', 'Okyanus', 'Lacivert, mercan'],
+  ['forest', 'Orman', 'Yosun yeşili, bal'],
+  ['graphite', 'Grafit', 'Sade gri, gök mavisi'],
+  ['neon', 'Neon', 'Gece moru, camgöbeği'],
+  ['rose', 'Gül', 'Pembe kâğıt, ahududu'],
+  ['sand', 'Kum', 'Sıcak bej, petrol'],
+];
+const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+function resolvedTheme(t) { return t === 'system' ? (darkMq.matches ? 'dark' : 'light') : t; }
 function applyTheme(t) {
-  document.documentElement.dataset.theme = t;
-  $('#themeBtn use').setAttribute('href', t === 'dark' ? '#i-sun' : '#i-moon');
-  $('#themeBtn').setAttribute('aria-label', t === 'dark' ? 'Açık temaya geç' : 'Koyu temaya geç');
+  document.documentElement.dataset.theme = resolvedTheme(t || 'dark');
+  $$('#themeGrid .theme').forEach(b => { const on = b.dataset.t === t; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
 }
-$('#themeBtn').addEventListener('click', () => saveSetting({ theme: settings.theme === 'dark' ? 'light' : 'dark' }));
+darkMq.addEventListener('change', () => { if (settings.theme === 'system') applyTheme('system'); });
+function buildThemeGrid() {
+  const grid = $('#themeGrid');
+  grid.replaceChildren();
+  for (const [key, name, desc] of THEMES) {
+    const preview = h('span', { class: 'tp', 'data-theme': key === 'system' ? 'dark' : key },
+      h('span', { class: 'tp-rail' }), h('span', { class: 'tp-panel' }, h('i'), h('i'), h('b')));
+    if (key === 'system') preview.append(h('span', { class: 'tp tp-half', 'data-theme': 'light' },
+      h('span', { class: 'tp-rail' }), h('span', { class: 'tp-panel' }, h('i'), h('i'), h('b'))));
+    grid.append(h('button', { class: 'theme', role: 'radio', dataset: { t: key }, onclick: () => saveSetting({ theme: key }) },
+      preview, h('span', { class: 'tn' }, h('b', { text: name }), h('span', { text: desc }))));
+  }
+}
+buildThemeGrid();
+$('#themeBtn').addEventListener('click', () => {
+  const keys = THEMES.map(x => x[0]).filter(k => k !== 'system');
+  const next = keys[(keys.indexOf(settings.theme) + 1) % keys.length];
+  saveSetting({ theme: next });
+  toast('Tema: ' + THEMES.find(x => x[0] === next)[1], 'info');
+});
 
 /* ================================================================== yakalayıcı */
 const input = $('#urlInput'), catcher = $('#catcher'), lens = $('#lens'), lensLabel = $('#lensLabel');
@@ -734,6 +765,7 @@ async function poll(immediate) {
     renderJobs(d.jobs);
     ffState = d.ffmpeg; updState = d.update;
     $('#phoneDot').hidden = !d.lan_on;
+    if (d.app_update) handleAppUpdatePoll(d.app_update);
     handleSubPoll(d);
     renderSysProgress();
     active = d.jobs.some(j => j.status === 'running' || j.status === 'queued') || d.ffmpeg.running || d.update.running || d.sub_checking;
@@ -1081,6 +1113,79 @@ $('#lanRotate').addEventListener('click', async () => {
   toast('Anahtar yenilendi. Telefonda QR kodu yeniden okut.', 'ok');
 });
 
+/* ================================================================== uygulama güncellemesi */
+let appUpd = null;
+let ubHiddenFor = null;
+try { ubHiddenFor = localStorage.getItem('ubHiddenFor'); } catch { /* yok */ }
+const cleanNotes = t => String(t || '').replace(/\r/g, '').replace(/\*\*|`/g, '').replace(/^#+\s*/gm, '').trim();
+async function refreshAppUpdate(check) {
+  try { appUpd = await api(check ? 'app_update_check' : 'app_update'); } catch (e) { toast(e.message, 'err'); return; }
+  renderAppUpdate();
+}
+function handleAppUpdatePoll(u) {
+  if (!appUpd) return;
+  const changed = u.ready !== appUpd.ready || u.downloading !== appUpd.downloading || u.version !== (appUpd.available || {}).version || u.error !== appUpd.error;
+  Object.assign(appUpd, { ready: u.ready, downloading: u.downloading, progress: u.progress, error: u.error });
+  if (u.version && (!appUpd.available || appUpd.available.version !== u.version)) { refreshAppUpdate(false); return; }
+  if (changed || u.downloading) renderAppUpdate();
+}
+function renderAppUpdate() {
+  const u = appUpd;
+  if (!u) return;
+  const av = u.available;
+  $('#auVersion').textContent = `Yakala ${u.current}`;
+  let status = 'Güncel sürümü kullanıyorsun.';
+  if (u.checking) status = 'Denetleniyor…';
+  else if (av && u.ready) status = `Yakala ${av.version} indirildi; yeniden başlatınca kurulur.`;
+  else if (av && u.downloading) status = `Yakala ${av.version} indiriliyor ${pct(u.progress)}`;
+  else if (av) status = `Yeni sürüm var: Yakala ${av.version}.` + (u.can_install ? '' : ' ' + u.cannot_reason);
+  if (u.error) status = u.error;
+  if (!u.checked && !av && !u.error) status = 'Henüz denetlenmedi.';
+  $('#auStatus').textContent = status;
+  const show = !!av && ubHiddenFor !== av.version;
+  $('#updateBanner').hidden = !show;
+  if (!show) return;
+  $('#ubTitle').textContent = u.ready ? `Yakala ${av.version} kurulmaya hazır` : `Yakala ${av.version} çıktı`;
+  $('#ubSub').textContent = u.ready ? 'Yeniden başlatınca birkaç saniyede kurulur; ayarların ve geçmişin korunur.'
+    : u.downloading ? `İndiriliyor ${pct(u.progress)}` : `Şu an ${u.current} kullanıyorsun.`;
+  const btn = $('#ubAction');
+  btn.disabled = !!u.downloading;
+  btn.textContent = !u.can_install ? 'Sürüm sayfası' : u.ready ? 'Yeniden başlat ve güncelle' : u.downloading ? `İndiriliyor ${pct(u.progress)}` : 'İndir ve güncelle';
+  $('#ubNotesBody').textContent = cleanNotes(av.notes);
+}
+$('#ubNotes').addEventListener('click', () => { const n = $('#ubNotesBody'); n.hidden = !n.hidden; $('#ubNotes').textContent = n.hidden ? 'Neler yeni?' : 'Gizle'; });
+$('#ubClose').addEventListener('click', () => {
+  ubHiddenFor = appUpd && appUpd.available && appUpd.available.version;
+  try { localStorage.setItem('ubHiddenFor', ubHiddenFor); } catch { /* yok */ }
+  $('#updateBanner').hidden = true;
+});
+$('#ubAction').addEventListener('click', async () => {
+  const u = appUpd;
+  if (!u || !u.available) return;
+  if (!u.can_install) { copyText(u.available.url).then(() => toast('Sürüm sayfasının adresi kopyalandı: ' + u.available.url, 'ok')); return; }
+  try {
+    if (u.ready) {
+      if (jobsCache.some(j => j.status === 'running') &&
+          !confirm('Süren indirmeler duraklatılıp güncellemeden sonra kaldığı yerden devam edebilir. Şimdi yeniden başlatılsın mı?')) return;
+      $('#ubAction').disabled = true;
+      $('#ubAction').textContent = 'Kuruluyor…';
+      await api('app_update_install');
+      toast('Yakala kapanıp güncellenecek ve yeniden açılacak.', 'ok');
+    } else {
+      appUpd = await api('app_update_download');
+      renderAppUpdate();
+      poll(true);
+    }
+  } catch (e) { toast(e.message, 'err'); renderAppUpdate(); }
+});
+$('#auCheck').addEventListener('click', async e => {
+  const b = e.currentTarget; b.disabled = true;
+  try {
+    await refreshAppUpdate(true);
+    if (appUpd && !appUpd.available && !appUpd.error) toast('Yakala güncel.', 'ok');
+  } finally { b.disabled = false; }
+});
+
 /* ================================================================== ayarlar */
 async function saveSetting(changes) {
   try {
@@ -1260,4 +1365,5 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) { po
   poll(true);
   checkClipboard();
   clipTimer = setInterval(checkClipboard, 2000);
+  refreshAppUpdate(false);
 })();

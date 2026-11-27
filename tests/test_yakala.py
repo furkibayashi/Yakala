@@ -268,3 +268,100 @@ def test_lan_rotate_revokes(lan):
     share.rotate_key()
     r, _ = _req("GET", "/api/items", {"Cookie": f"yakala_k={old}"})
     assert r.status == 401
+
+
+# --------------------------------------------------------------------------- uygulama güncellemesi
+import hashlib
+import io
+import threading
+import zipfile
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
+def _zip(entries: dict) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for name, data in entries.items():
+            z.writestr(name, data)
+    return buf.getvalue()
+
+
+@pytest.fixture()
+def release(env, monkeypatch):
+    """Yerel sahte GitHub sürüm sunucusu."""
+    files = {"zip": _zip({"Yakala/Yakala.exe": b"MZ", "Yakala/_internal/isaret.txt": b"yeni"})}
+    meta = {"tag": "v9.9.9", "sha": None}
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            port = self.server.server_address[1]
+            if self.path == "/release":
+                sha = meta["sha"] or hashlib.sha256(files["zip"]).hexdigest()
+                body = json.dumps({"tag_name": meta["tag"], "html_url": "https://example/rel", "body": "## Yenilikler\n- **Deneme**",
+                                   "assets": [{"name": "Yakala-9.9.9-windows.zip", "size": len(files["zip"]),
+                                               "digest": "sha256:" + sha,
+                                               "browser_download_url": f"http://127.0.0.1:{port}/pkg.zip"}]}).encode()
+            else:
+                body = files["zip"]
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    monkeypatch.setenv("YAKALA_UPDATE_URL", f"http://127.0.0.1:{srv.server_address[1]}/release")
+    from yakala import appupdate
+    importlib.reload(appupdate)
+    yield appupdate, files, meta
+    srv.shutdown()
+
+
+def test_update_found_downloaded_verified(release):
+    appupdate, files, meta = release
+    av = appupdate.check()
+    assert av["version"] == "9.9.9" and "Deneme" in av["notes"]
+    assert appupdate.download() and appupdate.state["ready"]
+    d = appupdate._ready_dir("9.9.9")
+    assert (d / "Yakala.exe").exists() and (d / "_internal" / "isaret.txt").read_text() == "yeni"
+
+
+def test_update_rejects_bad_checksum(release):
+    appupdate, files, meta = release
+    meta["sha"] = "0" * 64
+    appupdate.check()
+    assert not appupdate.download()
+    assert "SHA-256" in appupdate.state["error"] and not appupdate.state["ready"]
+
+
+def test_update_rejects_zip_slip(release):
+    appupdate, files, meta = release
+    files["zip"] = _zip({"Yakala/Yakala.exe": b"MZ", "../../kotu.txt": b"x"})
+    appupdate.check()
+    assert not appupdate.download()
+    assert "geçersiz dosya yolu" in appupdate.state["error"]
+
+
+def test_update_ignores_older_release(release):
+    appupdate, files, meta = release
+    meta["tag"] = "v0.9.0"
+    assert appupdate.check() is None and appupdate.state["available"] is None
+
+
+def test_update_not_installed_from_source(release):
+    appupdate, *_ = release
+    ok, why = appupdate.can_install()
+    assert not ok and "Kaynak" in why
+    assert not appupdate.install(restart=True)
+
+
+def test_stale_update_packages_removed(release):
+    appupdate, *_ = release
+    root = appupdate.update_root()
+    (root / "0.1.0").mkdir()
+    (root / "99.0.0").mkdir()
+    appupdate.cleanup_stale()
+    assert not (root / "0.1.0").exists() and (root / "99.0.0").exists()

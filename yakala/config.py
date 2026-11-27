@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 APP_NAME = "Yakala"
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.4.0"
 
 
 def app_dir() -> Path:
@@ -77,6 +77,7 @@ DEFAULTS: dict = {
     "lan_key": "",
     "lan_allow_send": True,
     "keep_awake": True,
+    "app_auto_update": True,
 }
 
 FILENAME_TEMPLATES = {
@@ -94,7 +95,7 @@ CHOICES = {
     "audio_quality": {"best", "320", "256", "192", "128"},
     "cookies_mode": {"none", "browser", "file"},
     "cookies_browser": {"firefox", "chrome", "edge", "brave", "opera", "vivaldi", "chromium"},
-    "theme": {"dark", "light"},
+    "theme": {"system", "dark", "light", "ocean", "forest", "rose", "graphite", "sand", "neon"},
     "quick_mode": {"off", "video", "audio"},
     "sub_interval": {"30", "60", "180", "360", "1440"},
 }

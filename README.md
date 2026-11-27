@@ -32,6 +32,15 @@ Bunların dışında yt-dlp'nin desteklediği yüzlerce site de "Diğer site" ol
 - **Sürükle bırak:** tarayıcıdan bir bağlantıyı pencereye sürükle.
 - **Koyu / açık tema**, platformlara göre klasörleme, dosya adı şablonları, hız sınırı, proxy.
 
+### 1.4 ile gelenler
+
+- **Uygulama içi güncelleme:** GitHub'da yeni bir sürüm yayınlanınca Yakala bunu kendisi bulur, indirir ve
+  SHA-256 ile doğrular. "Yeniden başlat ve güncelle" dersen birkaç saniyede kurulup yeniden açılır; demezsen
+  Yakala'yı kapattığında kurulur. Ayarlar → Uygulama güncellemeleri'nden otomatik güncellemeyi kapatabilirsin;
+  kapalıyken yalnızca haber verir. Ayarların, geçmişin ve takiplerin korunur.
+- **Yeni temalar:** Gece, Gün, Okyanus, Orman, Grafit, Neon, Gül, Kum ve Windows'u izleyen "Sistemle aynı".
+  Ayarlar → Görünüm'den seç ya da sol alttaki palet düğmesiyle sırayla dene. Telefon sayfası da aynı temayı kullanır.
+
 ### 1.3 ile gelenler
 
 - **Telefondan erişim:** Telefon sekmesinden aç, QR kodu telefonunla okut. İndirdiklerini telefonda izle,
@@ -105,6 +114,15 @@ Gereksinim: Windows 10/11 (64 bit). Arayüz için Microsoft Edge WebView2 kullan
 
 FFmpeg ayrıca kurmana gerek yok; uygulamayla birlikte gelir. Ayarlar → Sistem bölümünden
 tek tıkla tam sürüme (ffprobe dahil) yükseltebilirsin.
+
+## Yeni sürüm yayınlamak (geliştirici)
+
+1. `yakala/config.py` içinde `APP_VERSION`'ı yükselt (ör. `"1.5.0"`), commit'le ve `git push` yap.
+2. Sürüm notlarını bir dosyaya yaz (ör. `notlar.md`).
+3. `py yayinla.py notlar.md`
+
+Betik exe'yi derler, `Yakala-<sürüm>-windows.zip` paketini ve SHA-256 özetini hazırlar ve GitHub'da sürümü
+oluşturur. Kullanıcılardaki Yakala yeni sürümü birkaç saat içinde kendiliğinden kurar.
 
 ## Kısayollar
 
